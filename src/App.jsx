@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard'
 import PropertySearch from './components/PropertySearch'
 import FollowUpsView from './components/FollowUpsView'
 import ExpensesView from './components/ExpensesView'
+import ReportsView from './components/ReportsView'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -271,6 +272,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'reports' ? 'active' : ''}
+          onClick={() => setView('reports')}
+        >
+          Reports
+        </button>
+        <button
+          type="button"
           className={view === 'services' ? 'active' : ''}
           onClick={() => setView('services')}
         >
@@ -325,6 +333,9 @@ function App() {
           onAdd={addExpense}
           onDelete={deleteExpense}
         />
+      )}
+      {view === 'reports' && (
+        <ReportsView contacts={contacts} expenses={expenses} />
       )}
       {view === 'services' && (
         <ServiceManager

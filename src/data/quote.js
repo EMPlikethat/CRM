@@ -53,5 +53,5 @@ export function calculateQuote(services, serviceIds = [], measurements = {}) {
 }
 
 export function formatCurrency(amount) {
-  return `$${amount.toFixed(2)}`
+  return amount < 0 ? `-$${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`
 }

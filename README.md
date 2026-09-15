@@ -181,6 +181,22 @@ step by step in React with a real Node/Express + SQLite backend.
     or silently dropping the row. This is groundwork for Profitability
     (roadmap item 15): once a job can look up its own linked expenses,
     subtracting them from that job's invoice total is the whole feature.
+22. **Profitability & Reports** — a new "Reports" tab covers both: three
+    summary cards (Revenue, Expenses, Net profit - the last one green or
+    amber depending on sign) and a per-job profitability table (revenue,
+    expenses, profit, margin %), with an optional From/To date filter
+    above them. Profitability is cash-based on purpose: Revenue only
+    counts jobs actually marked Paid (`payment.amount`), not just quoted
+    or invoiced, since money quoted but never collected isn't profit yet.
+    Expenses count everything in range, whether linked to a job or general
+    overhead, since both are real costs; per-job Expenses only sums what's
+    linked to that specific job. No new backend or API call was needed -
+    contacts and expenses are already loaded client-side (same "single
+    fetch, multiple views" pattern as every other view), so this is pure
+    client-side aggregation. One roadmap item (16, Reports) folded into
+    this rather than being a separate build: for now, "the profitability
+    report" is the one report this app has - more report types can be
+    added to this same tab later without changing the pattern.
 
 ## Roadmap
 
@@ -202,8 +218,8 @@ The full feature list, and where each one stands:
 | 12 | Photos | **Done** (milestone 20) |
 | 13 | Notes | **Done** (milestone 19) |
 | 14 | Expenses | **Done** (milestone 21) |
-| 15 | Profitability | Not started - needs Jobs + Invoices + Expenses first |
-| 16 | Reports | Not started - needs most of the above first |
+| 15 | Profitability | **Done** (milestone 22) |
+| 16 | Reports | **Done** (milestone 22) - one report (profitability) so far |
 | 17 | Service/pricing management | **Done** (milestone 5) |
 | 18 | Settings | Not started |
 
@@ -216,8 +232,7 @@ The full feature list, and where each one stands:
    distinct entity (separate from the pipeline stage) is the one piece of
    this step not done - stays a stage on the contact for now.
 4. ~~Notes, Follow-ups, Photos~~ — done (milestones 19-20).
-5. ~~Expenses~~ — done (milestone 21). Profitability → Reports is the
-   piece of this step not done yet.
+5. ~~Expenses → Profitability → Reports~~ — done (milestones 21-22).
 6. Map, Settings (fairly independent, can slot in anywhere) - Properties
    already has an address to geocode when Map gets built.
 
@@ -352,7 +367,10 @@ Two limitations worth knowing before you rely on this:
 - `src/data/quote.js` — turns a contact's selected services + measurements
   into a priced line-item breakdown, using the current rates. Only used
   for the live in-progress preview now (`ContactForm.jsx`) - the board and
-  list read the frozen `quote` already saved on each contact instead.
+  list read the frozen `quote` already saved on each contact instead. Also
+  exports `formatCurrency`, shared by every dollar amount in the app -
+  it renders negatives as `-$X` rather than `$-X`, which only matters
+  once Reports (milestone 22) makes a negative number (a loss) possible.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
 - `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`.
 - `src/data/properties.js` — `groupByProperty`/`filterPropertyGroups`, pure
@@ -406,10 +424,16 @@ Two limitations worth knowing before you rely on this:
   a table of every expense, newest first. The job dropdown lists contacts
   as `address — name`; a deleted linked job shows as "Deleted job"
   instead of breaking.
+- `src/components/ReportsView.jsx` — the Profitability & Reports tab
+  (milestone 22): an optional From/To date filter, three summary cards
+  (Revenue/Expenses/Net profit), and a per-job profitability table. Pure
+  client-side aggregation over the `contacts`/`expenses` already loaded -
+  no API call of its own.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
   signed in, then fetches contacts/services/expenses, calls the API for
   every mutation and updates state from the response, and toggles between
-  dashboard/board/list/calendar/search/followups/expenses/services views.
+  dashboard/board/list/calendar/search/followups/expenses/reports/services
+  views.
 - `vite.config.js` — proxies `/api/*` and `/uploads/*` to
   `http://localhost:3001` in dev, so the browser sees same-origin
   requests and no CORS setup is needed.
