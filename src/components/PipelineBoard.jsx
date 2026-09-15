@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { STAGES } from '../data/stages'
 import { serviceLabels } from '../data/services'
 import { formatSchedule } from '../data/formatSchedule'
+import { calculateQuote, formatCurrency } from '../data/quote'
 
 export default function PipelineBoard({
   contacts,
@@ -51,6 +52,7 @@ export default function PipelineBoard({
               {stageContacts.map((c) => {
                 const scheduledLabel = formatSchedule(c.scheduledAt)
                 const isEditingSchedule = editingScheduleId === c.id
+                const quote = calculateQuote(c.services, c.measurements)
                 return (
                   <div
                     key={c.id}
@@ -64,8 +66,8 @@ export default function PipelineBoard({
                         {serviceLabels(c.services)}
                       </div>
                     )}
-                    {c.quotedPrice && (
-                      <div className="card-price">${c.quotedPrice}</div>
+                    {quote.total > 0 && (
+                      <div className="card-price">{formatCurrency(quote.total)}</div>
                     )}
 
                     {isEditingSchedule ? (

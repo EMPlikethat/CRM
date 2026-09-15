@@ -1,5 +1,6 @@
 import { STAGES } from '../data/stages'
 import { serviceLabels } from '../data/services'
+import { calculateQuote, formatCurrency } from '../data/quote'
 
 export default function ContactList({
   contacts,
@@ -19,20 +20,22 @@ export default function ContactList({
           <th>Phone</th>
           <th>Address</th>
           <th>Services</th>
-          <th>Quoted</th>
+          <th>Quote</th>
           <th>Stage</th>
           <th>Scheduled</th>
           <th></th>
         </tr>
       </thead>
       <tbody>
-        {contacts.map((c) => (
+        {contacts.map((c) => {
+          const quote = calculateQuote(c.services, c.measurements)
+          return (
           <tr key={c.id}>
             <td>{c.name}</td>
             <td>{c.phone}</td>
             <td>{c.address}</td>
             <td>{serviceLabels(c.services)}</td>
-            <td>{c.quotedPrice ? `$${c.quotedPrice}` : '—'}</td>
+            <td>{quote.total > 0 ? formatCurrency(quote.total) : '—'}</td>
             <td>
               <select
                 value={c.stage}
@@ -65,7 +68,8 @@ export default function ContactList({
               </button>
             </td>
           </tr>
-        ))}
+          )
+        })}
       </tbody>
     </table>
   )

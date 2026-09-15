@@ -106,6 +106,68 @@ select {
   padding: 0;
 }
 
+.service-row {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.service-row:last-child {
+  border-bottom: none;
+}
+
+.measurement-field,
+.measurement-pair label {
+  margin: 0.4rem 0 0.4rem 1.6rem;
+  max-width: 220px;
+}
+
+.measurement-pair {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+}
+
+.quote-preview {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+.quote-preview h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.quote-line {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  padding: 0.2rem 0;
+}
+
+.quote-line-detail {
+  color: var(--muted);
+  text-align: right;
+}
+
+.quote-line-amount {
+  font-weight: 600;
+  min-width: 4.5rem;
+  text-align: right;
+}
+
+.quote-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-weight: 700;
+}
+
 button {
   font: inherit;
   padding: 0.5rem 1rem;

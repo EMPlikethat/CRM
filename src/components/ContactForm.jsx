@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { STAGES } from '../data/stages'
 import { SERVICES } from '../data/services'
+import { calculateQuote, formatCurrency } from '../data/quote'
 
 const EMPTY_FORM = {
   name: '',
   phone: '',
   address: '',
   services: [],
-  quotedPrice: '',
+  measurements: {},
   stage: STAGES[0].id,
   scheduledAt: '',
 }
@@ -28,12 +29,24 @@ export default function ContactForm({ onAdd }) {
     }))
   }
 
+  function updateMeasurement(serviceId, field, value) {
+    setForm((prev) => ({
+      ...prev,
+      measurements: {
+        ...prev.measurements,
+        [serviceId]: { ...prev.measurements[serviceId], [field]: value },
+      },
+    }))
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
     onAdd({ ...form, id: crypto.randomUUID() })
     setForm(EMPTY_FORM)
   }
+
+  const quote = calculateQuote(form.services, form.measurements)
 
   return (
     <form className="contact-form" onSubmit={handleSubmit}>
@@ -62,14 +75,6 @@ export default function ContactForm({ onAdd }) {
           />
         </label>
         <label>
-          Quoted price ($)
-          <input
-            value={form.quotedPrice}
-            onChange={(e) => updateField('quotedPrice', e.target.value)}
-            inputMode="decimal"
-          />
-        </label>
-        <label>
           Stage
           <select
             value={form.stage}
@@ -94,17 +99,83 @@ export default function ContactForm({ onAdd }) {
 
       <fieldset className="services-field">
         <legend>Services</legend>
-        {SERVICES.map((service) => (
-          <label key={service.id} className="service-checkbox">
-            <input
-              type="checkbox"
-              checked={form.services.includes(service.id)}
-              onChange={() => toggleService(service.id)}
-            />
-            {service.label}
-          </label>
-        ))}
+        {SERVICES.map((service) => {
+          const checked = form.services.includes(service.id)
+          const measurement = form.measurements[service.id] ?? {}
+          return (
+            <div key={service.id} className="service-row">
+              <label className="service-checkbox">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleService(service.id)}
+                />
+                {service.label}
+              </label>
+
+              {checked && service.pricing.type === 'area' && (
+                <label className="measurement-field">
+                  Square footage
+                  <input
+                    type="number"
+                    min="0"
+                    value={measurement.sqft ?? ''}
+                    onChange={(e) =>
+                      updateMeasurement(service.id, 'sqft', e.target.value)
+                    }
+                  />
+                </label>
+              )}
+
+              {checked && service.pricing.type === 'gutter' && (
+                <div className="measurement-pair">
+                  <label className="measurement-field">
+                    Bottom story (linear ft)
+                    <input
+                      type="number"
+                      min="0"
+                      value={measurement.bottomFt ?? ''}
+                      onChange={(e) =>
+                        updateMeasurement(service.id, 'bottomFt', e.target.value)
+                      }
+                    />
+                  </label>
+                  <label className="measurement-field">
+                    Top story (linear ft)
+                    <input
+                      type="number"
+                      min="0"
+                      value={measurement.topFt ?? ''}
+                      onChange={(e) =>
+                        updateMeasurement(service.id, 'topFt', e.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </fieldset>
+
+      {quote.lineItems.length > 0 && (
+        <div className="quote-preview">
+          <h3>Quote preview</h3>
+          {quote.lineItems.map((item) => (
+            <div key={item.serviceId} className="quote-line">
+              <span className="quote-line-label">{item.label}</span>
+              <span className="quote-line-detail">{item.detail}</span>
+              <span className="quote-line-amount">
+                {formatCurrency(item.subtotal)}
+              </span>
+            </div>
+          ))}
+          <div className="quote-total">
+            <span>Total</span>
+            <span>{formatCurrency(quote.total)}</span>
+          </div>
+        </div>
+      )}
 
       <button type="submit">Add contact</button>
     </form>
