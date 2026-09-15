@@ -23,9 +23,14 @@ step by step in React.
    stored as a stale number — same idea as a spreadsheet formula vs. a
    hardcoded cell.
 
-Current rates: Complete Roof Soft Wash $0.50/sq ft, Pressure Washing
+Starting rates: Complete Roof Soft Wash $0.50/sq ft, Pressure Washing
 Driveway and Entryway $0.40/sq ft, Gutter Debris Removal $1.50/linear ft
-(bottom story) or $2.50/linear ft (top story).
+(bottom story) or $2.50/linear ft (top story) — all editable from the app.
+5. **Manage services** — a "Manage services" screen lets you rename
+   services, change their rates, add a brand new service (priced per sq ft
+   or per linear ft), or delete one, all without touching code. Services
+   are now stored in `localStorage` alongside contacts rather than
+   hardcoded, so this list is the live source every other view reads from.
 
 No backend yet, on purpose — the first milestones stay focused on React
 fundamentals (components, state, forms, native browser APIs) before adding
@@ -35,9 +40,9 @@ the complexity of a server.
 
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
-- `src/data/services.js` — the services this business offers, and each
-  one's pricing rule (rate per sq ft, or per-story rates for gutters).
-  Change a price here and it updates everywhere.
+- `src/data/services.js` — localStorage read/write for the services list
+  (mirrors `contacts.js`). Seeded with today's services/rates the first
+  time the app runs; after that, edits made in "Manage services" persist.
 - `src/data/quote.js` — turns a contact's selected services + measurements
   into a priced line-item breakdown. The only place pricing math happens.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
@@ -48,8 +53,9 @@ the complexity of a server.
   and delete.
 - `src/components/PipelineBoard.jsx` — Kanban-style board, one column per
   stage, drag-and-drop to change a contact's stage.
-- `src/App.jsx` — wires state together, owns the source-of-truth array, and
-  toggles between board/list views.
+- `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
+- `src/App.jsx` — wires state together, owns the source-of-truth arrays
+  (contacts and services), and toggles between board/list/services views.
 
 ## Running it
 
@@ -64,4 +70,6 @@ npm run dev
    at creation).
 2. Deal-level notes/activity log per contact.
 3. Swap localStorage for a real backend + auth (Supabase or a small
-   Node/Express API) once the localStorage version feels limiting.
+   Node/Express API) once the localStorage version feels limiting — this
+   is also when a service price change should probably stop retroactively
+   changing already-quoted jobs (snapshot the price at quote time).

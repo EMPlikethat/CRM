@@ -4,9 +4,9 @@ import { findService } from './services'
 //   { 'roof-softwash': { sqft: 1400 },
 //     'gutter-debris': { bottomFt: 60, topFt: 30 } }
 // This is the only place pricing math happens, so a rate change only
-// ever needs to happen in services.js.
-export function calculateLineItem(serviceId, measurement = {}) {
-  const service = findService(serviceId)
+// ever needs to happen in the services store.
+export function calculateLineItem(services, serviceId, measurement = {}) {
+  const service = findService(services, serviceId)
   if (!service) return null
   const { pricing } = service
 
@@ -17,6 +17,16 @@ export function calculateLineItem(serviceId, measurement = {}) {
       label: service.label,
       detail: `${sqft} sq ft × $${pricing.rate.toFixed(2)}`,
       subtotal: sqft * pricing.rate,
+    }
+  }
+
+  if (pricing.type === 'linear') {
+    const linearFt = Number(measurement.linearFt) || 0
+    return {
+      serviceId,
+      label: service.label,
+      detail: `${linearFt} linear ft × $${pricing.rate.toFixed(2)}`,
+      subtotal: linearFt * pricing.rate,
     }
   }
 
@@ -34,9 +44,9 @@ export function calculateLineItem(serviceId, measurement = {}) {
   return null
 }
 
-export function calculateQuote(serviceIds = [], measurements = {}) {
+export function calculateQuote(services, serviceIds = [], measurements = {}) {
   const lineItems = serviceIds
-    .map((id) => calculateLineItem(id, measurements[id]))
+    .map((id) => calculateLineItem(services, id, measurements[id]))
     .filter(Boolean)
   const total = lineItems.reduce((sum, item) => sum + item.subtotal, 0)
   return { lineItems, total }

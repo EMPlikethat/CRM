@@ -1,8 +1,9 @@
-// The services this business offers, each with its own pricing model.
-// A contact can select more than one, so this list drives a checkbox
-// group (not a single dropdown). `pricing` tells the quote calculator
-// how to turn a measurement into a dollar line item.
-export const SERVICES = [
+const STORAGE_KEY = 'crm.services'
+
+// Today's services and rates, used the first time the app runs. Once
+// saved, localStorage is the source of truth, so edits made through the
+// "Manage services" screen persist across reloads just like contacts do.
+const SEED_SERVICES = [
   {
     id: 'roof-softwash',
     label: 'Complete Roof Soft Wash',
@@ -22,10 +23,26 @@ export const SERVICES = [
   },
 ]
 
-export function findService(id) {
-  return SERVICES.find((s) => s.id === id)
+export function loadServices() {
+  const raw = localStorage.getItem(STORAGE_KEY)
+  if (!raw) return SEED_SERVICES
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return SEED_SERVICES
+  }
 }
 
-export function serviceLabels(serviceIds = []) {
-  return serviceIds.map((id) => findService(id)?.label ?? id).join(', ')
+export function saveServices(services) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(services))
+}
+
+export function findService(services, id) {
+  return services.find((s) => s.id === id)
+}
+
+export function serviceLabels(services, serviceIds = []) {
+  return serviceIds
+    .map((id) => findService(services, id)?.label ?? id)
+    .join(', ')
 }

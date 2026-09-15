@@ -4,6 +4,7 @@ import { calculateQuote, formatCurrency } from '../data/quote'
 
 export default function ContactList({
   contacts,
+  services,
   onUpdateStage,
   onUpdateSchedule,
   onDelete,
@@ -28,13 +29,13 @@ export default function ContactList({
       </thead>
       <tbody>
         {contacts.map((c) => {
-          const quote = calculateQuote(c.services, c.measurements)
+          const quote = calculateQuote(services, c.services, c.measurements)
           return (
           <tr key={c.id}>
             <td>{c.name}</td>
             <td>{c.phone}</td>
             <td>{c.address}</td>
-            <td>{serviceLabels(c.services)}</td>
+            <td>{serviceLabels(services, c.services)}</td>
             <td>{quote.total > 0 ? formatCurrency(quote.total) : '—'}</td>
             <td>
               <select

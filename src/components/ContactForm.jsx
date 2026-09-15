@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { STAGES } from '../data/stages'
-import { SERVICES } from '../data/services'
 import { calculateQuote, formatCurrency } from '../data/quote'
 
 const EMPTY_FORM = {
@@ -13,7 +12,7 @@ const EMPTY_FORM = {
   scheduledAt: '',
 }
 
-export default function ContactForm({ onAdd }) {
+export default function ContactForm({ services, onAdd }) {
   const [form, setForm] = useState(EMPTY_FORM)
 
   function updateField(field, value) {
@@ -46,7 +45,7 @@ export default function ContactForm({ onAdd }) {
     setForm(EMPTY_FORM)
   }
 
-  const quote = calculateQuote(form.services, form.measurements)
+  const quote = calculateQuote(services, form.services, form.measurements)
 
   return (
     <form className="contact-form" onSubmit={handleSubmit}>
@@ -99,7 +98,7 @@ export default function ContactForm({ onAdd }) {
 
       <fieldset className="services-field">
         <legend>Services</legend>
-        {SERVICES.map((service) => {
+        {services.map((service) => {
           const checked = form.services.includes(service.id)
           const measurement = form.measurements[service.id] ?? {}
           return (
@@ -122,6 +121,20 @@ export default function ContactForm({ onAdd }) {
                     value={measurement.sqft ?? ''}
                     onChange={(e) =>
                       updateMeasurement(service.id, 'sqft', e.target.value)
+                    }
+                  />
+                </label>
+              )}
+
+              {checked && service.pricing.type === 'linear' && (
+                <label className="measurement-field">
+                  Linear footage
+                  <input
+                    type="number"
+                    min="0"
+                    value={measurement.linearFt ?? ''}
+                    onChange={(e) =>
+                      updateMeasurement(service.id, 'linearFt', e.target.value)
                     }
                   />
                 </label>

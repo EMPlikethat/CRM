@@ -168,6 +168,69 @@ select {
   font-weight: 700;
 }
 
+.service-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+}
+
+.service-table th,
+.service-table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.service-table th:first-child,
+.service-table td:first-child {
+  width: 48%;
+}
+
+.service-table th {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.service-name-input {
+  width: 100%;
+  min-width: 200px;
+}
+
+.service-pricing-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.service-pricing-cell label {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.service-pricing-cell input {
+  width: 6rem;
+}
+
+.add-service-form {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+}
+
+.add-service-form h3 {
+  margin-top: 0;
+  font-size: 1rem;
+}
+
+.add-service-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
 button {
   font: inherit;
   padding: 0.5rem 1rem;

@@ -6,6 +6,7 @@ import { calculateQuote, formatCurrency } from '../data/quote'
 
 export default function PipelineBoard({
   contacts,
+  services,
   onUpdateStage,
   onUpdateSchedule,
   onDelete,
@@ -52,7 +53,7 @@ export default function PipelineBoard({
               {stageContacts.map((c) => {
                 const scheduledLabel = formatSchedule(c.scheduledAt)
                 const isEditingSchedule = editingScheduleId === c.id
-                const quote = calculateQuote(c.services, c.measurements)
+                const quote = calculateQuote(services, c.services, c.measurements)
                 return (
                   <div
                     key={c.id}
@@ -63,7 +64,7 @@ export default function PipelineBoard({
                     <div className="card-name">{c.name}</div>
                     {c.services?.length > 0 && (
                       <div className="card-service">
-                        {serviceLabels(c.services)}
+                        {serviceLabels(services, c.services)}
                       </div>
                     )}
                     {quote.total > 0 && (
