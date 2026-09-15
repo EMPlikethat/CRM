@@ -51,8 +51,24 @@ step by step in React with a real Node/Express + SQLite backend.
 10. **Email** — contacts now have an email field alongside phone/address,
     shown in the form and the list. (Useful for later, when the planned
     scanner/calculator sends a quote by text and email — see below.)
+11. **Login (single-admin auth)** — every `/api/contacts` and
+    `/api/services` route now requires a signed-in session; hitting the
+    app with no session shows a sign-in screen instead of your data. The
+    very first time the app runs, before any account exists, that screen
+    is a one-time "Create the admin account" form instead of a login -
+    once that account is created, the door closes and only login works
+    from then on (no open sign-up). Sessions are a signed, `httpOnly`
+    cookie (`express-session`); passwords are hashed with Node's built-in
+    `crypto.scrypt`, never stored in plain text. This is deliberately
+    single-tenant - one account for the business owner, not a
+    multi-user/role system - see "Planned next milestones."
+12. **Deployment-ready as one process** — in production
+    (`NODE_ENV=production`, i.e. `npm start`), the same Express server
+    that serves the API also serves the built frontend
+    (`express.static('dist')` + an index.html fallback), so the whole app
+    is one deployable service instead of two. See "Deploying" below.
 
-## Running it
+## Running it locally
 
 Two processes, in separate terminals:
 
@@ -63,7 +79,37 @@ npm run dev      # frontend on http://localhost:5173, proxies /api to the server
 ```
 
 The frontend won't show data until the server is running — it shows a
-"couldn't reach the API server" message if it can't connect.
+"couldn't reach the API server" message if it can't connect. The first
+time you open it, you'll get the "Create the admin account" screen -
+that account is the only login this CRM will have.
+
+## Deploying
+
+This wasn't done as part of this session — it needs your own account on a
+host — but the app is set up to make it a small number of steps:
+
+1. Pick a host that runs a long-lived Node process (Railway, Render, Fly.io
+   are common free/cheap options - this won't work on a purely static host
+   like GitHub Pages, since the API server needs to actually run).
+2. Connect this repo to it.
+3. Set the build command to `npm install && npm run build` and the start
+   command to `npm start`.
+4. Set one environment variable: `SESSION_SECRET`, a long random string.
+   Generate one locally with:
+   ```bash
+   node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"
+   ```
+   (`.env.example` documents this - copy it to `.env` for local testing of
+   production mode; never commit `.env` itself, it's gitignored.)
+5. Deploy. The host gives you a URL; the first visit there is your
+   "Create the admin account" screen, same as local.
+
+One limitation worth knowing before you rely on this: sessions are held
+in the server's memory (`express-session`'s default store), which only
+works correctly with a single running server instance and forgets every
+signed-in session on restart/redeploy. Fine for one business owner on one
+instance; if this ever needs to scale to multiple server instances, swap
+in a real session store (e.g. one backed by the database) at that point.
 
 ## Project layout
 
@@ -76,7 +122,12 @@ The frontend won't show data until the server is running — it shows a
   legitimate pattern (Postgres's JSONB column works the same way).
 - `server/index.js` — the Express app: REST endpoints
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
-  for `/api/services`) that read/write the database and return JSON.
+  for `/api/services`) that read/write the database and return JSON, plus
+  `/api/auth/*` (see `server/auth.js`) and, in production, static-file
+  serving for the built frontend.
+- `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
+  built-in `crypto.scrypt` - no extra dependency, no native module to
+  compile.
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
@@ -92,6 +143,9 @@ The frontend won't show data until the server is running — it shows a
   for the live in-progress preview now (`ContactForm.jsx`) - the board and
   list read the frozen `quote` already saved on each contact instead.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
+- `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`.
+- `src/components/AuthGate.jsx` — the sign-in screen; doubles as the
+  one-time account-creation form when `needsSetup` is true.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
   edit form: pass it an `editingContact` and it pre-fills, changes its
   submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
@@ -102,17 +156,20 @@ The frontend won't show data until the server is running — it shows a
 - `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
 - `src/components/CalendarView.jsx` — month-grid view of every contact's
   `scheduledAt`, grouped by day.
-- `src/App.jsx` — fetches contacts/services once on mount, calls the API
-  for every mutation and updates state from the response, and toggles
-  between board/list/calendar/services views.
+- `src/App.jsx` — checks auth status first; renders `AuthGate` until
+  signed in, then fetches contacts/services, calls the API for every
+  mutation and updates state from the response, and toggles between
+  board/list/calendar/services views.
 - `vite.config.js` — proxies `/api/*` to `http://localhost:3001` in dev,
   so the browser sees same-origin requests and no CORS setup is needed.
 
 ## Planned next milestones
 
 1. Deal-level notes/activity log per contact.
-2. Auth (so this is safe to put on the internet instead of just running
-   locally) and deploying the API server + database somewhere real
-   (Railway, Render, etc. — SQLite-on-a-file works for one server process,
-   but a hosted Postgres is the usual next step if this ever needs more
-   than one server instance).
+2. Multi-user accounts (an employee login separate from the owner's, with
+   its own credentials) - today there's exactly one account for the whole
+   business, created once at setup.
+3. A shared/database-backed session store, if this ever needs to run as
+   more than one server instance.
+4. Actually deploying it (see "Deploying" above) - everything's in place,
+   this just needs your own hosting account.

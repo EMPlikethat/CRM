@@ -14,6 +14,14 @@ db.exec(`
 `)
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    passwordHash TEXT NOT NULL
+  )
+`)
+
+db.exec(`
   CREATE TABLE IF NOT EXISTS contacts (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,

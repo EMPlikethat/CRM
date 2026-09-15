@@ -4,6 +4,8 @@ import ContactList from './components/ContactList'
 import PipelineBoard from './components/PipelineBoard'
 import ServiceManager from './components/ServiceManager'
 import CalendarView from './components/CalendarView'
+import AuthGate from './components/AuthGate'
+import { fetchAuthStatus, logout } from './data/auth'
 import {
   fetchContacts,
   createContact,
@@ -18,6 +20,8 @@ import {
 } from './data/services'
 
 function App() {
+  // null while the initial /auth/status check is in flight.
+  const [authState, setAuthState] = useState(null)
   const [contacts, setContacts] = useState([])
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
@@ -26,18 +30,40 @@ function App() {
   const [editingContactId, setEditingContactId] = useState(null)
   const editingContact = contacts.find((c) => c.id === editingContactId) ?? null
 
-  // Load once from the API server on mount. Every mutation below calls
-  // the server directly and updates state from its response, instead of
-  // writing the whole array back like the localStorage version did.
   useEffect(() => {
+    fetchAuthStatus()
+      .then(setAuthState)
+      .catch((err) => setLoadError(err.message))
+  }, [])
+
+  // Only load contacts/services once signed in. A 401 here means the
+  // session expired mid-use (cookie cleared, server restarted with a
+  // fresh secret, etc.) - bounce back to the sign-in screen instead of
+  // showing a raw error.
+  useEffect(() => {
+    if (!authState?.authenticated) return
+    setLoading(true)
     Promise.all([fetchContacts(), fetchServices()])
       .then(([loadedContacts, loadedServices]) => {
         setContacts(loadedContacts)
         setServices(loadedServices)
       })
-      .catch((err) => setLoadError(err.message))
+      .catch((err) => {
+        if (err.status === 401) {
+          setAuthState({ authenticated: false, needsSetup: false })
+        } else {
+          setLoadError(err.message)
+        }
+      })
       .finally(() => setLoading(false))
-  }, [])
+  }, [authState?.authenticated])
+
+  async function handleLogout() {
+    await logout()
+    setContacts([])
+    setServices([])
+    setAuthState({ authenticated: false, needsSetup: false })
+  }
 
   async function addContact(contact) {
     const saved = await createContact(contact)
@@ -84,14 +110,6 @@ function App() {
     setServices((prev) => prev.filter((s) => s.id !== id))
   }
 
-  if (loading) {
-    return (
-      <main className="app">
-        <p className="status-message">Loading…</p>
-      </main>
-    )
-  }
-
   if (loadError) {
     return (
       <main className="app">
@@ -103,10 +121,42 @@ function App() {
     )
   }
 
+  if (!authState) {
+    return (
+      <main className="app">
+        <p className="status-message">Loading…</p>
+      </main>
+    )
+  }
+
+  if (!authState.authenticated) {
+    return (
+      <AuthGate
+        needsSetup={authState.needsSetup}
+        onAuthenticated={() => setAuthState({ authenticated: true, needsSetup: false })}
+      />
+    )
+  }
+
+  if (loading) {
+    return (
+      <main className="app">
+        <p className="status-message">Loading…</p>
+      </main>
+    )
+  }
+
   return (
     <main className="app">
-      <h1>MCH CRM</h1>
-      <p className="subtitle">Contacts &amp; leads</p>
+      <div className="app-header">
+        <div>
+          <h1>MCH CRM</h1>
+          <p className="subtitle">Contacts &amp; leads</p>
+        </div>
+        <button type="button" className="cancel-btn" onClick={handleLogout}>
+          Log out
+        </button>
+      </div>
       <ContactForm services={services} onAdd={addContact} />
 
       <div className="view-toggle">
