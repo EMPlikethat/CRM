@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import ContactForm from './components/ContactForm'
 import ContactList from './components/ContactList'
+import PipelineBoard from './components/PipelineBoard'
 import { loadContacts, saveContacts } from './data/contacts'
 
 function App() {
   const [contacts, setContacts] = useState(loadContacts)
+  const [view, setView] = useState('board')
 
   // Every time contacts change, persist them so a page refresh doesn't
   // wipe your data. This is the one line you'll replace with a real API
@@ -32,11 +34,37 @@ function App() {
       <h1>Softwash CRM</h1>
       <p className="subtitle">Contacts &amp; leads</p>
       <ContactForm onAdd={addContact} />
-      <ContactList
-        contacts={contacts}
-        onUpdateStage={updateStage}
-        onDelete={deleteContact}
-      />
+
+      <div className="view-toggle">
+        <button
+          type="button"
+          className={view === 'board' ? 'active' : ''}
+          onClick={() => setView('board')}
+        >
+          Pipeline board
+        </button>
+        <button
+          type="button"
+          className={view === 'list' ? 'active' : ''}
+          onClick={() => setView('list')}
+        >
+          List
+        </button>
+      </div>
+
+      {view === 'board' ? (
+        <PipelineBoard
+          contacts={contacts}
+          onUpdateStage={updateStage}
+          onDelete={deleteContact}
+        />
+      ) : (
+        <ContactList
+          contacts={contacts}
+          onUpdateStage={updateStage}
+          onDelete={deleteContact}
+        />
+      )}
     </main>
   )
 }

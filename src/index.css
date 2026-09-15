@@ -129,3 +129,104 @@ button:hover {
 .empty-state {
   color: var(--muted);
 }
+
+.view-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.view-toggle button {
+  background: transparent;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.view-toggle button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.board {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.board-column {
+  flex: 0 0 220px;
+  background: color-mix(in srgb, var(--border) 25%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-height: 120px;
+  transition: background-color 0.15s ease;
+}
+
+.board-column.drag-over {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: var(--accent);
+}
+
+.board-column h3 {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+}
+
+.board-column .count {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.board-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.board-card {
+  position: relative;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 1.6rem 0.6rem 0.6rem;
+  cursor: grab;
+  font-size: 0.85rem;
+}
+
+.board-card:active {
+  cursor: grabbing;
+}
+
+.card-name {
+  font-weight: 600;
+}
+
+.card-service,
+.card-price {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.card-delete {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  width: 1.2rem;
+  height: 1.2rem;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.card-delete:hover {
+  color: #d33;
+}

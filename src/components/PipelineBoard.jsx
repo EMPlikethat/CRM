@@ -1,0 +1,71 @@
+import { useState } from 'react'
+import { STAGES } from '../data/stages'
+
+export default function PipelineBoard({ contacts, onUpdateStage, onDelete }) {
+  const [dragOverStage, setDragOverStage] = useState(null)
+
+  function handleDragStart(e, contactId) {
+    // dataTransfer is how the browser hands data from the dragged
+    // element to whatever it gets dropped on — it's the only channel
+    // native drag-and-drop gives you.
+    e.dataTransfer.setData('text/plain', contactId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  function handleDrop(e, stageId) {
+    e.preventDefault()
+    const contactId = e.dataTransfer.getData('text/plain')
+    onUpdateStage(contactId, stageId)
+    setDragOverStage(null)
+  }
+
+  return (
+    <div className="board">
+      {STAGES.map((stage) => {
+        const stageContacts = contacts.filter((c) => c.stage === stage.id)
+        return (
+          <div
+            key={stage.id}
+            className={
+              'board-column' + (dragOverStage === stage.id ? ' drag-over' : '')
+            }
+            onDragOver={(e) => {
+              e.preventDefault() // required or the browser rejects the drop
+              setDragOverStage(stage.id)
+            }}
+            onDragLeave={() => setDragOverStage(null)}
+            onDrop={(e) => handleDrop(e, stage.id)}
+          >
+            <h3>
+              {stage.label} <span className="count">{stageContacts.length}</span>
+            </h3>
+            <div className="board-cards">
+              {stageContacts.map((c) => (
+                <div
+                  key={c.id}
+                  className="board-card"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, c.id)}
+                >
+                  <div className="card-name">{c.name}</div>
+                  {c.service && <div className="card-service">{c.service}</div>}
+                  {c.quotedPrice && (
+                    <div className="card-price">${c.quotedPrice}</div>
+                  )}
+                  <button
+                    type="button"
+                    className="card-delete"
+                    onClick={() => onDelete(c.id)}
+                    aria-label={`Delete ${c.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
