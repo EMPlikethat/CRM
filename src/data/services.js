@@ -3,7 +3,7 @@
 export const SERVICES = [
   { id: 'roof-softwash', label: 'Complete Roof Soft Wash' },
   { id: 'gutter-debris', label: 'Gutter Debris Removal' },
-  { id: 'driveway-entree', label: 'Pressure Washing Driveway and Entree Way' },
+  { id: 'driveway-entree', label: 'Pressure Washing Driveway and Entryway' },
 ]
 
 export function serviceLabels(serviceIds = []) {
