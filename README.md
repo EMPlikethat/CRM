@@ -61,7 +61,7 @@ step by step in React with a real Node/Express + SQLite backend.
     cookie (`express-session`); passwords are hashed with Node's built-in
     `crypto.scrypt`, never stored in plain text. This is deliberately
     single-tenant - one account for the business owner, not a
-    multi-user/role system - see "Planned next milestones."
+    multi-user/role system - see "Other planned work" below
 12. **Deployment-ready as one process** — in production
     (`NODE_ENV=production`, i.e. `npm start`), the same Express server
     that serves the API also serves the built frontend
@@ -109,6 +109,22 @@ step by step in React with a real Node/Express + SQLite backend.
     or payment date. Search now shows the real payment method/date (or
     the invoice number and due date, if still unpaid) instead of just a
     stage badge, and the Dashboard's Unpaid card flags overdue invoices.
+17. **Online payment link** — every invoice gets a public "Pay Invoice"
+    page at `/pay/<token>` (a 192-bit random token, not the sequential
+    invoice number, so one link can't be used to guess another) showing
+    the line items, total, and due date, with a "Pay now" button. That
+    button starts a Stripe Checkout session; a webhook
+    (`/api/stripe/webhook`) marks the job Paid automatically the moment
+    Stripe confirms payment - no manual step, which was the actual point.
+    The edit form shows a "Copy link" button next to the invoice once one
+    exists, so you can text or email it to the customer yourself; fully
+    automated sending (the CRM emailing/texting it for you) is future
+    work; see "Other planned work" below. Requires your own Stripe
+    account and two environment variables
+    (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, documented in
+    `.env.example`) - without them the "Pay now" button shows a clear
+    "not set up yet" message instead of erroring, so the rest of the app
+    works fine either way.
 
 ## Roadmap
 
@@ -124,8 +140,8 @@ The full feature list, and where each one stands:
 | 6 | Estimates | Exists as the quote system (milestones 4, 9) under a different name |
 | 7 | Jobs | Not started as a distinct entity - currently a pipeline stage |
 | 8 | Scheduling | **Done** - the Calendar view (and inline scheduling on board/list) |
-| 9 | Invoices | **Done** (milestone 16) |
-| 10 | Payments | **Done** (milestone 16) |
+| 9 | Invoices | **Done** (milestones 16-17) - plus a public pay link |
+| 10 | Payments | **Done** (milestones 16-17) - online (Stripe) or manual |
 | 11 | Follow-ups | Not started |
 | 12 | Photos | Not started |
 | 13 | Notes | Not started |
@@ -183,6 +199,11 @@ host — but the app is set up to make it a small number of steps:
    production mode; never commit `.env` itself, it's gitignored.)
 5. Deploy. The host gives you a URL; the first visit there is your
    "Create the admin account" screen, same as local.
+6. To turn on the customer "Pay now" button, also set `STRIPE_SECRET_KEY`
+   and `STRIPE_WEBHOOK_SECRET` (both explained in `.env.example`) - the
+   webhook one specifically needs your deployed URL, so it can only be
+   created after step 5. Skippable: the app runs fully without it, just
+   without online payment.
 
 One limitation worth knowing before you rely on this: sessions are held
 in the server's memory (`express-session`'s default store), which only
@@ -214,7 +235,18 @@ in a real session store (e.g. one backed by the database) at that point.
   the address was entered.
 - `server/invoices.js` — `createInvoice`/`createPayment`. Invoice numbers
   come from a single-row `invoice_counter` table (starts at 1001),
-  incremented once per invoice and never reused.
+  incremented once per invoice and never reused. Each invoice also gets
+  a random `payToken` (192 bits), what the public pay page is keyed on.
+- `server/stripe.js` — `getStripe()`, a thin wrapper that returns `null`
+  when `STRIPE_SECRET_KEY` isn't set so every caller degrades to a clear
+  "not configured" response instead of throwing.
+- Public routes in `server/index.js` (no `requireAuth`, since the
+  customer isn't a CRM user): `GET /api/pay/:token` (invoice details),
+  `POST /api/pay/:token/checkout` (starts a Stripe Checkout session), and
+  `POST /api/stripe/webhook` (marks the job Paid on
+  `checkout.session.completed` - registered with its own
+  `express.raw()` body parser *before* the app's blanket
+  `express.json()`, since Stripe's signature check needs the raw body).
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
@@ -242,9 +274,15 @@ in a real session store (e.g. one backed by the database) at that point.
   submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
   Once a job has an `invoice`/`payment` (server-generated - see
   `server/invoices.js`), shows an editable panel for each: due date on
-  the invoice, date/method/amount on the payment. Number, issue date,
+  the invoice, date/method/amount on the payment, plus a "Copy link"
+  button (while unpaid) for the customer's pay page. Number, issue date,
   and the fact that either exists at all are never set from this form -
   only the server decides when one gets created.
+- `src/PayInvoice.jsx` / `src/main.jsx` — the public customer-facing pay
+  page. Not part of the authenticated app: `main.jsx` checks
+  `window.location.pathname` before rendering anything and renders this
+  instead of `App` for any `/pay/*` path - a plain conditional rather
+  than pulling in a router library for one extra route.
 - `src/components/ContactList.jsx` — contact table with inline stage
   editing and delete; click a name to edit.
 - `src/components/PipelineBoard.jsx` — Kanban-style board, one column per
@@ -277,3 +315,8 @@ in a real session store (e.g. one backed by the database) at that point.
    more than one server instance.
 3. Actually deploying it (see "Deploying" above) - everything's in place,
    this just needs your own hosting account.
+4. Automated email/SMS sending of the pay link (right now you copy and
+   send it yourself) - deliberately deferred, since it needs its own
+   separate accounts (an email service, and Twilio for SMS - the latter
+   also costs per message) on top of the Stripe account payment already
+   requires.

@@ -1,3 +1,5 @@
+import crypto from 'node:crypto'
+
 function todayISODate() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -22,12 +24,16 @@ function nextInvoiceNumber(db) {
 // Called once, the first time a job's stage reaches "invoiced" (or
 // skips straight to "paid") - due date defaults to 30 days out but is
 // editable afterward per-contact, same as the payment method below.
+// payToken is what the public "Pay Invoice" page/link is keyed on - 24
+// random bytes (192 bits) so it's unguessable, unlike the sequential
+// invoice number, which is never used to look anything up publicly.
 export function createInvoice(db) {
   const issueDate = todayISODate()
   return {
     number: nextInvoiceNumber(db),
     issueDate,
     dueDate: addDays(issueDate, 30),
+    payToken: crypto.randomBytes(24).toString('hex'),
   }
 }
 

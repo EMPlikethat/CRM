@@ -7,6 +7,7 @@ import db from './db.js'
 import { hashPassword, verifyPassword } from './auth.js'
 import { findOrCreateProperty } from './properties.js'
 import { createInvoice, createPayment } from './invoices.js'
+import { getStripe } from './stripe.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -16,6 +17,59 @@ const app = express()
 // "secure: auto" cookies never get marked secure and browsers may
 // refuse them on a real deployment.
 app.set('trust proxy', 1)
+
+// Stripe's webhook signature check needs the raw, unparsed request body,
+// so this route (and its own express.raw() parser) has to be registered
+// before the blanket express.json() below - once that's run, the raw
+// bytes are gone and signature verification always fails.
+app.post(
+  '/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  (req, res) => {
+    const stripe = getStripe()
+    if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+      return res.status(503).end()
+    }
+
+    let event
+    try {
+      event = stripe.webhooks.constructEvent(
+        req.body,
+        req.headers['stripe-signature'],
+        process.env.STRIPE_WEBHOOK_SECRET,
+      )
+    } catch (err) {
+      return res.status(400).send(`Webhook signature verification failed: ${err.message}`)
+    }
+
+    if (event.type === 'checkout.session.completed') {
+      const contactId = event.data.object.metadata?.contactId
+      const existing = contactId
+        ? db.prepare('SELECT * FROM contacts WHERE id = ?').get(contactId)
+        : null
+      if (existing) {
+        const updated = rowToContact(existing)
+        updated.stage = 'paid'
+        applyInvoiceAndPayment(updated)
+        // Distinguish an online payment from one the business owner
+        // enters by hand, without needing them to type it in - the
+        // whole point of this endpoint is updating the CRM with no
+        // manual step.
+        if (!updated.payment.method) {
+          updated.payment.method = 'Online payment (Stripe)'
+        }
+        db.prepare('UPDATE contacts SET stage = ?, invoice = ?, payment = ? WHERE id = ?').run(
+          updated.stage,
+          JSON.stringify(updated.invoice),
+          JSON.stringify(updated.payment),
+          contactId,
+        )
+      }
+    }
+
+    res.json({ received: true })
+  },
+)
 
 app.use(express.json())
 
@@ -240,6 +294,71 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
 app.delete('/api/contacts/:id', requireAuth, (req, res) => {
   db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id)
   res.status(204).end()
+})
+
+// --- Public payment page (no auth - the customer isn't a CRM user) ---
+// Looked up by the invoice's payToken, a 192-bit random value, never by
+// the sequential invoice number or contact id, so a link can't be
+// guessed from another one.
+
+function findContactRowByPayToken(token) {
+  const rows = db.prepare('SELECT * FROM contacts WHERE invoice IS NOT NULL').all()
+  return rows.find((row) => JSON.parse(row.invoice).payToken === token) ?? null
+}
+
+app.get('/api/pay/:token', (req, res) => {
+  const row = findContactRowByPayToken(req.params.token)
+  if (!row) return res.status(404).json({ error: 'Invoice not found' })
+  const contact = rowToContact(row)
+  res.json({
+    name: contact.name,
+    address: contact.address,
+    quote: contact.quote,
+    invoice: {
+      number: contact.invoice.number,
+      issueDate: contact.invoice.issueDate,
+      dueDate: contact.invoice.dueDate,
+    },
+    isPaid: contact.stage === 'paid',
+  })
+})
+
+app.post('/api/pay/:token/checkout', async (req, res) => {
+  const stripe = getStripe()
+  if (!stripe) {
+    return res.status(503).json({
+      error: "Online payment isn't set up yet - contact the business directly to pay.",
+    })
+  }
+  const row = findContactRowByPayToken(req.params.token)
+  if (!row) return res.status(404).json({ error: 'Invoice not found' })
+  const contact = rowToContact(row)
+  if (contact.stage === 'paid') {
+    return res.status(400).json({ error: 'This invoice has already been paid.' })
+  }
+
+  const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: Math.round(contact.quote.total * 100),
+            product_data: { name: `Invoice ${contact.invoice.number}` },
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${origin}/pay/${req.params.token}?paid=1`,
+      cancel_url: `${origin}/pay/${req.params.token}`,
+      metadata: { contactId: contact.id },
+    })
+    res.json({ url: session.url })
+  } catch (err) {
+    res.status(502).json({ error: `Couldn't start checkout: ${err.message}` })
+  }
 })
 
 // In production there's no separate Vite dev server, so this same

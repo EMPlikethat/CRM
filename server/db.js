@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { findOrCreateProperty } from './properties.js'
 import { createInvoice, createPayment } from './invoices.js'
@@ -242,6 +243,22 @@ for (const row of rowsNeedingPayment) {
   const total = row.quote ? JSON.parse(row.quote).total : 0
   db.prepare('UPDATE contacts SET payment = ? WHERE id = ?').run(
     JSON.stringify(createPayment(total)),
+    row.id,
+  )
+}
+
+// Backfill payToken onto any invoice created before online payment
+// links existed, so every invoiced job - old or new - gets a working
+// pay link, not just ones invoiced after this feature shipped.
+const rowsNeedingPayToken = db
+  .prepare('SELECT id, invoice FROM contacts WHERE invoice IS NOT NULL')
+  .all()
+for (const row of rowsNeedingPayToken) {
+  const invoice = JSON.parse(row.invoice)
+  if (invoice.payToken) continue
+  invoice.payToken = crypto.randomBytes(24).toString('hex')
+  db.prepare('UPDATE contacts SET invoice = ? WHERE id = ?').run(
+    JSON.stringify(invoice),
     row.id,
   )
 }

@@ -27,6 +27,7 @@ export default function ContactForm({
 }) {
   const isEditing = Boolean(editingContact)
   const [form, setForm] = useState(() => toFormState(editingContact))
+  const [linkCopied, setLinkCopied] = useState(false)
 
   // Only re-initialize when the modal switches to a different contact,
   // not on every contacts-array update - otherwise unrelated changes
@@ -64,6 +65,13 @@ export default function ContactForm({
 
   function updatePaymentField(field, value) {
     setForm((prev) => ({ ...prev, payment: { ...prev.payment, [field]: value } }))
+  }
+
+  function copyPayLink() {
+    const link = `${window.location.origin}/pay/${form.invoice.payToken}`
+    navigator.clipboard.writeText(link)
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   // Computed live from the *current* service rates as you type, so it's
@@ -255,6 +263,20 @@ export default function ContactForm({
               />
             </label>
           </div>
+
+          {form.invoice.payToken && form.stage !== 'paid' && (
+            <div className="pay-link-row">
+              <input
+                readOnly
+                className="pay-link-input"
+                value={`${window.location.origin}/pay/${form.invoice.payToken}`}
+                onFocus={(e) => e.target.select()}
+              />
+              <button type="button" onClick={copyPayLink}>
+                {linkCopied ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+          )}
         </div>
       )}
 

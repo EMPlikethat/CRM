@@ -345,6 +345,22 @@ select {
   color: var(--muted);
 }
 
+.pay-link-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.pay-link-input {
+  flex: 1;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.pay-link-row button {
+  white-space: nowrap;
+}
+
 .form-actions {
   display: flex;
   align-items: center;
@@ -854,4 +870,80 @@ button:hover {
   margin-top: 0.4rem;
   font-size: 0.75rem;
   padding: 0.3rem;
+}
+
+/* Public "Pay Invoice" page - a customer's browser, not the CRM, so it
+   gets its own simple, trustworthy-looking layout rather than reusing
+   .app's chrome. */
+.pay-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.pay-card {
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
+}
+
+.pay-card h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.3rem;
+}
+
+.pay-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0 0 1.5rem;
+}
+
+.pay-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.pay-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.pay-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.pay-due {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0.4rem 0 1.5rem;
+}
+
+.pay-button {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.pay-paid-note {
+  text-align: center;
+  color: var(--status-good);
+  font-weight: 600;
+  padding: 0.75rem;
+  background: color-mix(in srgb, var(--status-good) 12%, transparent);
+  border-radius: 6px;
+  margin: 0;
 }
