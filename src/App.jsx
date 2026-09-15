@@ -4,75 +4,108 @@ import ContactList from './components/ContactList'
 import PipelineBoard from './components/PipelineBoard'
 import ServiceManager from './components/ServiceManager'
 import CalendarView from './components/CalendarView'
-import { loadContacts, saveContacts } from './data/contacts'
-import { loadServices, saveServices } from './data/services'
+import {
+  fetchContacts,
+  createContact,
+  saveContactUpdate,
+  removeContact,
+} from './data/contacts'
+import {
+  fetchServices,
+  createService,
+  saveServiceUpdate,
+  removeService,
+} from './data/services'
 
 function App() {
-  const [contacts, setContacts] = useState(loadContacts)
-  const [services, setServices] = useState(loadServices)
+  const [contacts, setContacts] = useState([])
+  const [services, setServices] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
   const [view, setView] = useState('board')
   const [editingContactId, setEditingContactId] = useState(null)
   const editingContact = contacts.find((c) => c.id === editingContactId) ?? null
 
-  // Every time contacts/services change, persist them so a page refresh
-  // doesn't wipe your data. These are the two lines you'll replace with
-  // real API calls once you move off localStorage.
+  // Load once from the API server on mount. Every mutation below calls
+  // the server directly and updates state from its response, instead of
+  // writing the whole array back like the localStorage version did.
   useEffect(() => {
-    saveContacts(contacts)
-  }, [contacts])
+    Promise.all([fetchContacts(), fetchServices()])
+      .then(([loadedContacts, loadedServices]) => {
+        setContacts(loadedContacts)
+        setServices(loadedServices)
+      })
+      .catch((err) => setLoadError(err.message))
+      .finally(() => setLoading(false))
+  }, [])
 
-  useEffect(() => {
-    saveServices(services)
-  }, [services])
-
-  function addContact(contact) {
-    setContacts((prev) => [...prev, contact])
+  async function addContact(contact) {
+    const saved = await createContact(contact)
+    setContacts((prev) => [...prev, saved])
   }
 
-  function updateStage(id, stage) {
-    setContacts((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, stage } : c)),
-    )
+  async function updateStage(id, stage) {
+    const updated = await saveContactUpdate(id, { stage })
+    setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)))
   }
 
-  function updateSchedule(id, scheduledAt) {
-    setContacts((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, scheduledAt } : c)),
-    )
+  async function updateSchedule(id, scheduledAt) {
+    const updated = await saveContactUpdate(id, { scheduledAt })
+    setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)))
   }
 
-  function deleteContact(id) {
+  async function updateContact(id, updates) {
+    const updated = await saveContactUpdate(id, updates)
+    setContacts((prev) => prev.map((c) => (c.id === id ? updated : c)))
+  }
+
+  async function deleteContact(id) {
+    await removeContact(id)
     setContacts((prev) => prev.filter((c) => c.id !== id))
   }
 
-  function updateContact(id, updates) {
-    setContacts((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
-    )
-  }
-
-  function deleteContactFromModal(id) {
-    deleteContact(id)
+  async function deleteContactFromModal(id) {
+    await deleteContact(id)
     setEditingContactId(null)
   }
 
-  function addService(service) {
-    setServices((prev) => [...prev, service])
+  async function addService(service) {
+    const saved = await createService(service)
+    setServices((prev) => [...prev, saved])
   }
 
-  function updateService(id, updates) {
-    setServices((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, ...updates } : s)),
+  async function updateService(id, updates) {
+    const updated = await saveServiceUpdate(id, updates)
+    setServices((prev) => prev.map((s) => (s.id === id ? updated : s)))
+  }
+
+  async function deleteService(id) {
+    await removeService(id)
+    setServices((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  if (loading) {
+    return (
+      <main className="app">
+        <p className="status-message">Loading…</p>
+      </main>
     )
   }
 
-  function deleteService(id) {
-    setServices((prev) => prev.filter((s) => s.id !== id))
+  if (loadError) {
+    return (
+      <main className="app">
+        <p className="status-message error">
+          Couldn't reach the API server ({loadError}). Make sure it's running
+          with <code>npm run server</code> in a separate terminal.
+        </p>
+      </main>
+    )
   }
 
   return (
     <main className="app">
-      <h1>Softwash CRM</h1>
+      <h1>MCH CRM</h1>
       <p className="subtitle">Contacts &amp; leads</p>
       <ContactForm services={services} onAdd={addContact} />
 
@@ -145,8 +178,8 @@ function App() {
             <ContactForm
               services={services}
               editingContact={editingContact}
-              onSave={(id, updates) => {
-                updateContact(id, updates)
+              onSave={async (id, updates) => {
+                await updateContact(id, updates)
                 setEditingContactId(null)
               }}
               onCancel={() => setEditingContactId(null)}

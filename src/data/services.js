@@ -1,40 +1,19 @@
-const STORAGE_KEY = 'crm.services'
+import { get, post, put, del } from './api'
 
-// Today's services and rates, used the first time the app runs. Once
-// saved, localStorage is the source of truth, so edits made through the
-// "Manage services" screen persist across reloads just like contacts do.
-const SEED_SERVICES = [
-  {
-    id: 'roof-softwash',
-    label: 'Complete Roof Soft Wash',
-    pricing: { type: 'area', rate: 0.5 },
-  },
-  {
-    id: 'driveway-entree',
-    label: 'Pressure Washing Driveway and Entryway',
-    pricing: { type: 'area', rate: 0.4 },
-  },
-  {
-    id: 'gutter-debris',
-    label: 'Gutter Debris Removal',
-    // Two tiers: gutters on the ground-floor roofline are easier to
-    // reach than a second story, so they're priced differently.
-    pricing: { type: 'gutter', bottomRate: 1.5, topRate: 2.5 },
-  },
-]
-
-export function loadServices() {
-  const raw = localStorage.getItem(STORAGE_KEY)
-  if (!raw) return SEED_SERVICES
-  try {
-    return JSON.parse(raw)
-  } catch {
-    return SEED_SERVICES
-  }
+export function fetchServices() {
+  return get('/services')
 }
 
-export function saveServices(services) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(services))
+export function createService(service) {
+  return post('/services', service)
+}
+
+export function saveServiceUpdate(id, updates) {
+  return put(`/services/${id}`, updates)
+}
+
+export function removeService(id) {
+  return del(`/services/${id}`)
 }
 
 export function findService(services, id) {

@@ -1,0 +1,105 @@
+import { DatabaseSync } from 'node:sqlite'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const db = new DatabaseSync(path.join(__dirname, 'data.db'))
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    label TEXT NOT NULL,
+    pricing TEXT NOT NULL
+  )
+`)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS contacts (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    phone TEXT,
+    address TEXT,
+    services TEXT NOT NULL DEFAULT '[]',
+    measurements TEXT NOT NULL DEFAULT '{}',
+    stage TEXT NOT NULL,
+    scheduledAt TEXT
+  )
+`)
+
+function nextFriday9am() {
+  const d = new Date()
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7))
+  d.setHours(9, 0, 0, 0)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+// Seed data only runs once - the first time the database file is
+// created. After that, whatever is in data.db is the source of truth.
+const serviceCount = db.prepare('SELECT COUNT(*) AS count FROM services').get().count
+if (serviceCount === 0) {
+  const insertService = db.prepare(
+    'INSERT INTO services (id, label, pricing) VALUES (?, ?, ?)',
+  )
+  insertService.run(
+    'roof-softwash',
+    'Complete Roof Soft Wash',
+    JSON.stringify({ type: 'area', rate: 0.5 }),
+  )
+  insertService.run(
+    'driveway-entree',
+    'Pressure Washing Driveway and Entryway',
+    JSON.stringify({ type: 'area', rate: 0.4 }),
+  )
+  insertService.run(
+    'gutter-debris',
+    'Gutter Debris Removal',
+    JSON.stringify({ type: 'gutter', bottomRate: 1.5, topRate: 2.5 }),
+  )
+}
+
+const contactCount = db.prepare('SELECT COUNT(*) AS count FROM contacts').get().count
+if (contactCount === 0) {
+  const insertContact = db.prepare(`
+    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+  insertContact.run(
+    'seed-1',
+    'Maria Alvarez',
+    '555-0142',
+    '118 Birchwood Dr',
+    JSON.stringify(['roof-softwash', 'gutter-debris']),
+    JSON.stringify({
+      'roof-softwash': { sqft: 1400 },
+      'gutter-debris': { bottomFt: 60, topFt: 30 },
+    }),
+    'lead',
+    '',
+  )
+  insertContact.run(
+    'seed-2',
+    'Tom Nguyen',
+    '555-0198',
+    '42 Lakeview Ct',
+    JSON.stringify(['driveway-entree']),
+    JSON.stringify({ 'driveway-entree': { sqft: 450 } }),
+    'quoted',
+    '',
+  )
+  insertContact.run(
+    'seed-3',
+    'Sara Kim',
+    '555-0177',
+    '7 Willow Ave',
+    JSON.stringify(['roof-softwash', 'driveway-entree']),
+    JSON.stringify({
+      'roof-softwash': { sqft: 1600 },
+      'driveway-entree': { sqft: 300 },
+    }),
+    'scheduled',
+    nextFriday9am(),
+  )
+}
+
+export default db
