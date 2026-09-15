@@ -17,9 +17,9 @@ step by step in React with a real Node/Express + SQLite backend.
 4. **Itemized pricing** — each service has a pricing rule (per sq ft, or
    per linear ft with a bottom/top-story split for gutters). Checking a
    service reveals its measurement inputs, and a quote breaks down live as
-   you type: line item + detail + subtotal per service, plus a total. The
-   price is always computed from the current rates, never stored as a
-   stale number — same idea as a spreadsheet formula vs. a hardcoded cell.
+   you type: line item + detail + subtotal per service, plus a total.
+   While you're still filling out the form, it's computed live from
+   today's rates - see milestone 8 for what happens once you save.
 5. **Manage services** — a "Manage services" screen lets you rename
    services, change their rates, add a brand new service (priced per sq ft
    or per linear ft), or delete one, all without touching code. Starting
@@ -39,6 +39,15 @@ step by step in React with a real Node/Express + SQLite backend.
    React app fetches on load and calls the API for every add/edit/delete.
    This is the actual client-server split every real app needs: the data
    now lives on a server, not in one browser tab on one device.
+9. **Price snapshotting** — saving a contact (add or edit) freezes the
+   computed quote onto that contact as `quote: { lineItems, total }`,
+   stored in its own column. Every view (board, list) reads that frozen
+   value instead of recalculating from the current service rates. Editing
+   a rate in "Manage services" now only affects *new* contacts and any
+   contact you explicitly open and re-save - it can no longer silently
+   change the price on a job already sitting in your pipeline. Re-saving
+   an existing contact deliberately re-quotes it at today's rates; that's
+   the one and only way an old contact's price changes.
 
 ## Running it
 
@@ -59,9 +68,9 @@ The frontend won't show data until the server is running — it shows a
 - `server/db.js` — opens `server/data.db` (created automatically) using
   Node's built-in `node:sqlite`, creates the `contacts` and `services`
   tables if they don't exist, and seeds them with demo data the first
-  time. `services`/`measurements` are stored as JSON text columns, since
-  SQLite has no native array/object type — a common, legitimate pattern
-  (Postgres's JSONB column works the same way).
+  time. `services`/`measurements`/`quote` are stored as JSON text
+  columns, since SQLite has no native array/object type — a common,
+  legitimate pattern (Postgres's JSONB column works the same way).
 - `server/index.js` — the Express app: REST endpoints
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
   for `/api/services`) that read/write the database and return JSON.
@@ -76,7 +85,9 @@ The frontend won't show data until the server is running — it shows a
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
 - `src/data/quote.js` — turns a contact's selected services + measurements
-  into a priced line-item breakdown. The only place pricing math happens.
+  into a priced line-item breakdown, using the current rates. Only used
+  for the live in-progress preview now (`ContactForm.jsx`) - the board and
+  list read the frozen `quote` already saved on each contact instead.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
   edit form: pass it an `editingContact` and it pre-fills, changes its
@@ -97,9 +108,7 @@ The frontend won't show data until the server is running — it shows a
 ## Planned next milestones
 
 1. Deal-level notes/activity log per contact.
-2. Snapshot a contact's price at quote time, so editing a service's rate
-   later doesn't retroactively change a job you already quoted a customer.
-3. Auth (so this is safe to put on the internet instead of just running
+2. Auth (so this is safe to put on the internet instead of just running
    locally) and deploying the API server + database somewhere real
    (Railway, Render, etc. — SQLite-on-a-file works for one server process,
    but a hosted Postgres is the usual next step if this ever needs more

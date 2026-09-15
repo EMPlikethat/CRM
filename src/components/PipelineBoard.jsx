@@ -4,6 +4,13 @@ import { serviceLabels } from '../data/services'
 import { formatSchedule } from '../data/formatSchedule'
 import { calculateQuote, formatCurrency } from '../data/quote'
 
+// Older contacts saved before quote-snapshotting was added won't have a
+// stored `quote` - fall back to computing live from current rates just
+// for those, so nothing breaks.
+function quoteFor(services, c) {
+  return c.quote ?? calculateQuote(services, c.services, c.measurements)
+}
+
 export default function PipelineBoard({
   contacts,
   services,
@@ -54,7 +61,7 @@ export default function PipelineBoard({
               {stageContacts.map((c) => {
                 const scheduledLabel = formatSchedule(c.scheduledAt)
                 const isEditingSchedule = editingScheduleId === c.id
-                const quote = calculateQuote(services, c.services, c.measurements)
+                const quote = quoteFor(services, c)
                 return (
                   <div
                     key={c.id}

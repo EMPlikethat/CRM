@@ -2,6 +2,13 @@ import { STAGES } from '../data/stages'
 import { serviceLabels } from '../data/services'
 import { calculateQuote, formatCurrency } from '../data/quote'
 
+// Older contacts saved before quote-snapshotting was added won't have a
+// stored `quote` - fall back to computing live from current rates just
+// for those, so nothing breaks.
+function quoteFor(services, c) {
+  return c.quote ?? calculateQuote(services, c.services, c.measurements)
+}
+
 export default function ContactList({
   contacts,
   services,
@@ -30,7 +37,7 @@ export default function ContactList({
       </thead>
       <tbody>
         {contacts.map((c) => {
-          const quote = calculateQuote(services, c.services, c.measurements)
+          const quote = quoteFor(services, c)
           return (
           <tr key={c.id}>
             <td>

@@ -18,6 +18,7 @@ function rowToContact(row) {
     measurements: JSON.parse(row.measurements),
     stage: row.stage,
     scheduledAt: row.scheduledAt ?? '',
+    quote: row.quote ? JSON.parse(row.quote) : null,
   }
 }
 
@@ -65,8 +66,8 @@ app.get('/api/contacts', (req, res) => {
 app.post('/api/contacts', (req, res) => {
   const c = req.body
   db.prepare(`
-    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt, quote)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     c.id,
     c.name,
@@ -76,6 +77,7 @@ app.post('/api/contacts', (req, res) => {
     JSON.stringify(c.measurements ?? {}),
     c.stage,
     c.scheduledAt ?? '',
+    c.quote ? JSON.stringify(c.quote) : null,
   )
   res.status(201).json(c)
 })
@@ -86,7 +88,7 @@ app.put('/api/contacts/:id', (req, res) => {
   const updated = { ...rowToContact(existing), ...req.body }
   db.prepare(`
     UPDATE contacts
-    SET name = ?, phone = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?
+    SET name = ?, phone = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?
     WHERE id = ?
   `).run(
     updated.name,
@@ -96,6 +98,7 @@ app.put('/api/contacts/:id', (req, res) => {
     JSON.stringify(updated.measurements),
     updated.stage,
     updated.scheduledAt,
+    updated.quote ? JSON.stringify(updated.quote) : null,
     req.params.id,
   )
   res.json(updated)

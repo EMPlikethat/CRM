@@ -22,9 +22,19 @@ db.exec(`
     services TEXT NOT NULL DEFAULT '[]',
     measurements TEXT NOT NULL DEFAULT '{}',
     stage TEXT NOT NULL,
-    scheduledAt TEXT
+    scheduledAt TEXT,
+    quote TEXT
   )
 `)
+
+// Migration for databases created before quote-snapshotting existed.
+// SQLite has no "ADD COLUMN IF NOT EXISTS", so just ignore the error
+// when the column is already there.
+try {
+  db.exec('ALTER TABLE contacts ADD COLUMN quote TEXT')
+} catch {
+  // column already exists - nothing to do
+}
 
 function nextFriday9am() {
   const d = new Date()
@@ -61,8 +71,8 @@ if (serviceCount === 0) {
 const contactCount = db.prepare('SELECT COUNT(*) AS count FROM contacts').get().count
 if (contactCount === 0) {
   const insertContact = db.prepare(`
-    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt, quote)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   insertContact.run(
     'seed-1',
@@ -76,6 +86,23 @@ if (contactCount === 0) {
     }),
     'lead',
     '',
+    JSON.stringify({
+      lineItems: [
+        {
+          serviceId: 'roof-softwash',
+          label: 'Complete Roof Soft Wash',
+          detail: '1400 sq ft × $0.50',
+          subtotal: 700,
+        },
+        {
+          serviceId: 'gutter-debris',
+          label: 'Gutter Debris Removal',
+          detail: '60 ft bottom @ $1.50 + 30 ft top @ $2.50',
+          subtotal: 165,
+        },
+      ],
+      total: 865,
+    }),
   )
   insertContact.run(
     'seed-2',
@@ -86,6 +113,17 @@ if (contactCount === 0) {
     JSON.stringify({ 'driveway-entree': { sqft: 450 } }),
     'quoted',
     '',
+    JSON.stringify({
+      lineItems: [
+        {
+          serviceId: 'driveway-entree',
+          label: 'Pressure Washing Driveway and Entryway',
+          detail: '450 sq ft × $0.40',
+          subtotal: 180,
+        },
+      ],
+      total: 180,
+    }),
   )
   insertContact.run(
     'seed-3',
@@ -99,6 +137,23 @@ if (contactCount === 0) {
     }),
     'scheduled',
     nextFriday9am(),
+    JSON.stringify({
+      lineItems: [
+        {
+          serviceId: 'roof-softwash',
+          label: 'Complete Roof Soft Wash',
+          detail: '1600 sq ft × $0.50',
+          subtotal: 800,
+        },
+        {
+          serviceId: 'driveway-entree',
+          label: 'Pressure Washing Driveway and Entryway',
+          detail: '300 sq ft × $0.40',
+          subtotal: 120,
+        },
+      ],
+      total: 920,
+    }),
   )
 }
 

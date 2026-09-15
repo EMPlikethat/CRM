@@ -55,18 +55,23 @@ export default function ContactForm({
     }))
   }
 
+  // Computed live from the *current* service rates as you type, so it's
+  // always accurate while you're still editing. handleSubmit freezes
+  // this exact result onto the contact - after that, changing a rate in
+  // "Manage services" won't touch it. Only saving this contact again
+  // (through this same form) recalculates its price.
+  const quote = calculateQuote(services, form.services, form.measurements)
+
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
     if (isEditing) {
-      onSave(editingContact.id, form)
+      onSave(editingContact.id, { ...form, quote })
     } else {
-      onAdd({ ...form, id: crypto.randomUUID() })
+      onAdd({ ...form, quote, id: crypto.randomUUID() })
       setForm(toFormState(null))
     }
   }
-
-  const quote = calculateQuote(services, form.services, form.measurements)
 
   return (
     <form className="contact-form" onSubmit={handleSubmit}>
@@ -195,6 +200,9 @@ export default function ContactForm({
       {quote.lineItems.length > 0 && (
         <div className="quote-preview">
           <h3>Quote preview</h3>
+          <p className="quote-lock-note">
+            Locks in at today's rates when you {isEditing ? 'save' : 'add'} this contact.
+          </p>
           {quote.lineItems.map((item) => (
             <div key={item.serviceId} className="quote-line">
               <span className="quote-line-label">{item.label}</span>
