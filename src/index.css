@@ -361,6 +361,12 @@ select {
   white-space: nowrap;
 }
 
+.invoice-email-error {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: #d33;
+}
+
 .form-actions {
   display: flex;
   align-items: center;

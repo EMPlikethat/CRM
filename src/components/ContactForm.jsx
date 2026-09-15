@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { STAGES } from '../data/stages'
 import { calculateQuote, formatCurrency } from '../data/quote'
+import { sendInvoiceEmail } from '../data/contacts'
 
 function toFormState(contact) {
   return {
@@ -28,6 +29,7 @@ export default function ContactForm({
   const isEditing = Boolean(editingContact)
   const [form, setForm] = useState(() => toFormState(editingContact))
   const [linkCopied, setLinkCopied] = useState(false)
+  const [emailStatus, setEmailStatus] = useState(null)
 
   // Only re-initialize when the modal switches to a different contact,
   // not on every contacts-array update - otherwise unrelated changes
@@ -72,6 +74,17 @@ export default function ContactForm({
     navigator.clipboard.writeText(link)
     setLinkCopied(true)
     setTimeout(() => setLinkCopied(false), 2000)
+  }
+
+  async function handleSendEmail() {
+    setEmailStatus('sending')
+    try {
+      await sendInvoiceEmail(editingContact.id)
+      setEmailStatus('sent')
+    } catch (err) {
+      setEmailStatus(err.message)
+    }
+    setTimeout(() => setEmailStatus(null), 4000)
   }
 
   // Computed live from the *current* service rates as you type, so it's
@@ -275,7 +288,23 @@ export default function ContactForm({
               <button type="button" onClick={copyPayLink}>
                 {linkCopied ? 'Copied!' : 'Copy link'}
               </button>
+              {form.email && (
+                <button
+                  type="button"
+                  onClick={handleSendEmail}
+                  disabled={emailStatus === 'sending'}
+                >
+                  {emailStatus === 'sending'
+                    ? 'Sending…'
+                    : emailStatus === 'sent'
+                      ? 'Sent!'
+                      : 'Send email'}
+                </button>
+              )}
             </div>
+          )}
+          {emailStatus && emailStatus !== 'sending' && emailStatus !== 'sent' && (
+            <p className="invoice-email-error">{emailStatus}</p>
           )}
         </div>
       )}

@@ -15,3 +15,7 @@ export function saveContactUpdate(id, updates) {
 export function removeContact(id) {
   return del(`/contacts/${id}`)
 }
+
+export function sendInvoiceEmail(id) {
+  return post(`/contacts/${id}/send-invoice-email`)
+}

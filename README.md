@@ -116,15 +116,29 @@ step by step in React with a real Node/Express + SQLite backend.
     button starts a Stripe Checkout session; a webhook
     (`/api/stripe/webhook`) marks the job Paid automatically the moment
     Stripe confirms payment - no manual step, which was the actual point.
-    The edit form shows a "Copy link" button next to the invoice once one
-    exists, so you can text or email it to the customer yourself; fully
-    automated sending (the CRM emailing/texting it for you) is future
-    work; see "Other planned work" below. Requires your own Stripe
-    account and two environment variables
+    The edit form shows a "Copy link" button next to the invoice, so you
+    can text it yourself; see the next milestone for automated email.
+    Requires your own Stripe account and two environment variables
     (`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, documented in
     `.env.example`) - without them the "Pay now" button shows a clear
     "not set up yet" message instead of erroring, so the rest of the app
     works fine either way.
+18. **Automated invoice email** — the moment a job's stage becomes
+    Invoiced (or skips straight to Paid), if the contact has an email
+    address on file, the invoice - line items, total, due date, pay
+    link - sends automatically, no button to click. A "Send email"
+    button also appears in the edit form next to "Copy link" (only when
+    an email address exists) to resend it any time. Sending happens
+    fire-and-forget, after the stage-change save already succeeded and
+    responded - a slow or misconfigured email provider can never delay
+    or fail the actual data save, which is what matters. Runs on Resend;
+    needs its own `RESEND_API_KEY` (and optionally `FROM_EMAIL`, both in
+    `.env.example`) - without it, sending fails with a clear message
+    instead of erroring, same pattern as Stripe. SMS is deliberately not
+    built - it needs a separate Twilio account, a purchased phone
+    number, a per-message fee, and (for US numbers) A2P 10DLC business
+    registration with carriers before texts reliably deliver; see "Other
+    planned work" below.
 
 ## Roadmap
 
@@ -247,14 +261,21 @@ in a real session store (e.g. one backed by the database) at that point.
   `checkout.session.completed` - registered with its own
   `express.raw()` body parser *before* the app's blanket
   `express.json()`, since Stripe's signature check needs the raw body).
+- `server/email.js` — `sendInvoiceEmail(contact, payLink)`, wrapping the
+  Resend SDK the same way `stripe.js` wraps Stripe's: returns
+  `{ sent: false, reason }` instead of throwing when unconfigured, so
+  callers (the PUT handler's fire-and-forget auto-send, and the
+  `POST /api/contacts/:id/send-invoice-email` manual-resend route) never
+  need a try/catch just to keep the app working without it.
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
   every other data file builds on.
 - `src/data/contacts.js` / `src/data/services.js` — one function per API
   call (`fetchContacts`, `createContact`, `saveContactUpdate`,
-  `removeContact`, and the equivalents for services). `services.js` also
-  still exports the pure helpers `findService`/`serviceLabels`.
+  `removeContact`, `sendInvoiceEmail`, and the equivalents for services).
+  `services.js` also still exports the pure helpers
+  `findService`/`serviceLabels`.
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
 - `src/data/quote.js` — turns a contact's selected services + measurements
@@ -274,10 +295,11 @@ in a real session store (e.g. one backed by the database) at that point.
   submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
   Once a job has an `invoice`/`payment` (server-generated - see
   `server/invoices.js`), shows an editable panel for each: due date on
-  the invoice, date/method/amount on the payment, plus a "Copy link"
-  button (while unpaid) for the customer's pay page. Number, issue date,
-  and the fact that either exists at all are never set from this form -
-  only the server decides when one gets created.
+  the invoice, date/method/amount on the payment, plus (while unpaid)
+  "Copy link" and, if the contact has an email on file, "Send email" to
+  resend the invoice on demand. Number, issue date, and the fact that
+  either exists at all are never set from this form - only the server
+  decides when one gets created.
 - `src/PayInvoice.jsx` / `src/main.jsx` — the public customer-facing pay
   page. Not part of the authenticated app: `main.jsx` checks
   `window.location.pathname` before rendering anything and renders this
@@ -315,8 +337,8 @@ in a real session store (e.g. one backed by the database) at that point.
    more than one server instance.
 3. Actually deploying it (see "Deploying" above) - everything's in place,
    this just needs your own hosting account.
-4. Automated email/SMS sending of the pay link (right now you copy and
-   send it yourself) - deliberately deferred, since it needs its own
-   separate accounts (an email service, and Twilio for SMS - the latter
-   also costs per message) on top of the Stripe account payment already
-   requires.
+4. Automated SMS sending of the pay link (email is done - milestone 18;
+   right now you'd copy/text the link yourself) - deliberately deferred,
+   since it needs its own Twilio account, a purchased phone number, a
+   per-message fee, and (for US numbers) A2P 10DLC business registration
+   with carriers before texts reliably deliver.

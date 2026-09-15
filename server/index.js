@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from './auth.js'
 import { findOrCreateProperty } from './properties.js'
 import { createInvoice, createPayment } from './invoices.js'
 import { getStripe } from './stripe.js'
+import { sendInvoiceEmail } from './email.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -139,6 +140,11 @@ function applyInvoiceAndPayment(contact) {
   return contact
 }
 
+function payLinkFor(req, contact) {
+  const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`
+  return `${origin}/pay/${contact.invoice.payToken}`
+}
+
 // --- Auth ---
 // Single-admin bootstrap: /api/auth/setup only works while the users
 // table is empty. After the first account is created, that door closes
@@ -262,6 +268,7 @@ app.post('/api/contacts', requireAuth, (req, res) => {
 app.put('/api/contacts/:id', requireAuth, (req, res) => {
   const existing = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'Not found' })
+  const hadInvoiceBefore = Boolean(existing.invoice)
   const updated = { ...rowToContact(existing), ...req.body }
   // Re-resolve every save, not just when address is the field being
   // changed - if the address changed, this relinks the job to the
@@ -289,6 +296,35 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
     req.params.id,
   )
   res.json(updated)
+
+  // Fire-and-forget, after the response is already sent: an invoice
+  // just came into existence on this save, so email it automatically.
+  // A slow or misconfigured email provider should never delay or fail
+  // the actual data save above, which is what matters.
+  if (!hadInvoiceBefore && updated.invoice && updated.email) {
+    sendInvoiceEmail(updated, payLinkFor(req, updated)).catch((err) =>
+      console.error('Auto-send invoice email failed:', err),
+    )
+  }
+})
+
+app.post('/api/contacts/:id/send-invoice-email', requireAuth, async (req, res) => {
+  const existing = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id)
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+  const contact = rowToContact(existing)
+  if (!contact.invoice) {
+    return res.status(400).json({ error: 'This job has no invoice yet.' })
+  }
+  const result = await sendInvoiceEmail(contact, payLinkFor(req, contact))
+  if (!result.sent) {
+    const messages = {
+      'not-configured': 'Email sending is not set up yet (missing RESEND_API_KEY).',
+      'no-email': 'This contact has no email address on file.',
+      'send-failed': `Failed to send: ${result.message}`,
+    }
+    return res.status(400).json({ error: messages[result.reason] || 'Failed to send email.' })
+  }
+  res.json({ sent: true })
 })
 
 app.delete('/api/contacts/:id', requireAuth, (req, res) => {
