@@ -3,6 +3,7 @@ import ContactForm from './components/ContactForm'
 import ContactList from './components/ContactList'
 import PipelineBoard from './components/PipelineBoard'
 import ServiceManager from './components/ServiceManager'
+import CalendarView from './components/CalendarView'
 import { loadContacts, saveContacts } from './data/contacts'
 import { loadServices, saveServices } from './data/services'
 
@@ -79,6 +80,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'calendar' ? 'active' : ''}
+          onClick={() => setView('calendar')}
+        >
+          Calendar
+        </button>
+        <button
+          type="button"
           className={view === 'services' ? 'active' : ''}
           onClick={() => setView('services')}
         >
@@ -103,6 +111,9 @@ function App() {
           onUpdateSchedule={updateSchedule}
           onDelete={deleteContact}
         />
+      )}
+      {view === 'calendar' && (
+        <CalendarView contacts={contacts} services={services} />
       )}
       {view === 'services' && (
         <ServiceManager

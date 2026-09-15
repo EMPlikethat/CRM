@@ -19,18 +19,20 @@ step by step in React.
    per linear ft with a bottom/top-story split for gutters). Checking a
    service reveals its measurement inputs, and a quote breaks down live as
    you type: line item + detail + subtotal per service, plus a total. The
-   price is always computed from the current rates in `services.js`, never
-   stored as a stale number — same idea as a spreadsheet formula vs. a
-   hardcoded cell.
-
-Starting rates: Complete Roof Soft Wash $0.50/sq ft, Pressure Washing
-Driveway and Entryway $0.40/sq ft, Gutter Debris Removal $1.50/linear ft
-(bottom story) or $2.50/linear ft (top story) — all editable from the app.
+   price is always computed from the current rates, never stored as a
+   stale number — same idea as a spreadsheet formula vs. a hardcoded cell.
 5. **Manage services** — a "Manage services" screen lets you rename
    services, change their rates, add a brand new service (priced per sq ft
    or per linear ft), or delete one, all without touching code. Services
-   are now stored in `localStorage` alongside contacts rather than
-   hardcoded, so this list is the live source every other view reads from.
+   are stored in `localStorage` alongside contacts rather than hardcoded,
+   so this list is the live source every other view reads from. Starting
+   rates: Complete Roof Soft Wash $0.50/sq ft, Pressure Washing Driveway
+   and Entryway $0.40/sq ft, Gutter Debris Removal $1.50/linear ft (bottom
+   story) or $2.50/linear ft (top story).
+6. **Appointment calendar** — a month-grid "Calendar" view shows every
+   scheduled contact on its date, built from the same `scheduledAt` field
+   the board and list already edit — nothing new to enter, this is just
+   another way of looking at the same data.
 
 No backend yet, on purpose — the first milestones stay focused on React
 fundamentals (components, state, forms, native browser APIs) before adding
@@ -54,8 +56,11 @@ the complexity of a server.
 - `src/components/PipelineBoard.jsx` — Kanban-style board, one column per
   stage, drag-and-drop to change a contact's stage.
 - `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
+- `src/components/CalendarView.jsx` — month-grid view of every contact's
+  `scheduledAt`, grouped by day.
 - `src/App.jsx` — wires state together, owns the source-of-truth arrays
-  (contacts and services), and toggles between board/list/services views.
+  (contacts and services), and toggles between board/list/calendar/services
+  views.
 
 ## Running it
 
