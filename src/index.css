@@ -5,6 +5,18 @@
   --muted: #6b6b6b;
   --border: #e0e0e0;
   --accent: #2563eb;
+  /* Ordinal ramp for the pipeline stages (dataviz skill palette, sequential
+     blue, steps 250-550) - same hexes in both color schemes, like the
+     skill's status palette. Used as a left-accent stripe, not a fill, so
+     tile text stays in text tokens rather than needing per-tile contrast
+     checks against a colored background. */
+  --stage-1: #86b6ef;
+  --stage-2: #6da7ec;
+  --stage-3: #5598e7;
+  --stage-4: #3987e5;
+  --stage-5: #2a78d6;
+  --stage-6: #1c5cab;
+  --status-good: #0ca30c;
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -358,6 +370,111 @@ select {
 
 .modal-content .contact-form {
   margin: 0;
+}
+
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.hero-figure {
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.hero-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.hero-value {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  /* Proportional figures, not tabular-nums - this is a standalone big
+     number, not a column that needs to align with others. */
+}
+
+.hero-sublabel {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 0.25rem;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 0.75rem;
+}
+
+.stat-tile {
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--tile-accent);
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.stat-sub {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.dashboard-section h2 {
+  font-size: 1rem;
+  margin: 0 0 0.75rem;
+}
+
+.upcoming-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upcoming-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.15rem 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.upcoming-time {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--accent);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.upcoming-name {
+  font-weight: 600;
+}
+
+.upcoming-detail {
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .calendar-header {

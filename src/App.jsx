@@ -4,6 +4,7 @@ import ContactList from './components/ContactList'
 import PipelineBoard from './components/PipelineBoard'
 import ServiceManager from './components/ServiceManager'
 import CalendarView from './components/CalendarView'
+import Dashboard from './components/Dashboard'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -26,7 +27,7 @@ function App() {
   const [services, setServices] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
-  const [view, setView] = useState('board')
+  const [view, setView] = useState('dashboard')
   const [editingContactId, setEditingContactId] = useState(null)
   const editingContact = contacts.find((c) => c.id === editingContactId) ?? null
 
@@ -162,6 +163,13 @@ function App() {
       <div className="view-toggle">
         <button
           type="button"
+          className={view === 'dashboard' ? 'active' : ''}
+          onClick={() => setView('dashboard')}
+        >
+          Dashboard
+        </button>
+        <button
+          type="button"
           className={view === 'board' ? 'active' : ''}
           onClick={() => setView('board')}
         >
@@ -190,6 +198,9 @@ function App() {
         </button>
       </div>
 
+      {view === 'dashboard' && (
+        <Dashboard contacts={contacts} services={services} />
+      )}
       {view === 'board' && (
         <PipelineBoard
           contacts={contacts}

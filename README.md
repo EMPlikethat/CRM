@@ -67,6 +67,51 @@ step by step in React with a real Node/Express + SQLite backend.
     that serves the API also serves the built frontend
     (`express.static('dist')` + an index.html fallback), so the whole app
     is one deployable service instead of two. See "Deploying" below.
+13. **Dashboard** — a home screen: a hero figure for total paid revenue,
+    a stat-tile row (one per pipeline stage, count + $ value), and an
+    upcoming-appointments list. Built from data that already exists - no
+    new fields, just a different view of the same contacts. Now the
+    default screen on load.
+
+## Roadmap
+
+The full feature list, and where each one stands:
+
+| # | Feature | Status |
+|---|---------|--------|
+| 1 | Dashboard | **Done** (milestone 13) |
+| 2 | Leads | Exists as a pipeline stage/filter on Contacts, not a separate entity yet |
+| 3 | Customers | Same as above - "Customer" = later-stage contact |
+| 4 | Properties | Not started - see the architecture note below |
+| 5 | Map | Not started |
+| 6 | Estimates | Exists as the quote system (milestones 4, 9) under a different name |
+| 7 | Jobs | Not started as a distinct entity - currently a pipeline stage |
+| 8 | Scheduling | **Done** - the Calendar view (and inline scheduling on board/list) |
+| 9 | Invoices | Not started |
+| 10 | Payments | Not started |
+| 11 | Follow-ups | Not started |
+| 12 | Photos | Not started |
+| 13 | Notes | Not started |
+| 14 | Expenses | Not started |
+| 15 | Profitability | Not started - needs Jobs + Invoices + Expenses first |
+| 16 | Reports | Not started - needs most of the above first |
+| 17 | Service/pricing management | **Done** (milestone 5) |
+| 18 | Settings | Not started |
+
+**Build order** (later items depend on earlier ones):
+1. ~~Dashboard~~ — done.
+2. **Customers/Properties split** — the one real architecture decision
+   left before Estimates/Jobs/Invoices can be built on solid ground: can
+   a Customer have more than one Property (a landlord, a repeat customer
+   who moves)? Defaulting to **one property per customer for now** (matches
+   today's model, simplest, easy to extend later) unless that's wrong for
+   how you actually work - say so and it's a straightforward change now,
+   before more is built on top of it.
+3. Estimates → Jobs → Invoices → Payments (really one pipeline: a quote
+   becomes a job becomes an invoice becomes a payment).
+4. Notes, Follow-ups, Photos (activity/attachments on a customer or job).
+5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
+6. Map, Settings (fairly independent, can slot in anywhere).
 
 ## Running it locally
 
@@ -156,20 +201,23 @@ in a real session store (e.g. one backed by the database) at that point.
 - `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
 - `src/components/CalendarView.jsx` — month-grid view of every contact's
   `scheduledAt`, grouped by day.
+- `src/components/Dashboard.jsx` — hero revenue figure + per-stage stat
+  tiles + upcoming appointments. The stage stat-tile ramp colors are CSS
+  custom properties (`--stage-1` through `--stage-6`) defined in
+  `index.css`, from the dataviz skill's validated sequential-blue palette.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
   signed in, then fetches contacts/services, calls the API for every
   mutation and updates state from the response, and toggles between
-  board/list/calendar/services views.
+  dashboard/board/list/calendar/services views.
 - `vite.config.js` — proxies `/api/*` to `http://localhost:3001` in dev,
   so the browser sees same-origin requests and no CORS setup is needed.
 
-## Planned next milestones
+## Other planned work (not on the 18-item roadmap)
 
-1. Deal-level notes/activity log per contact.
-2. Multi-user accounts (an employee login separate from the owner's, with
+1. Multi-user accounts (an employee login separate from the owner's, with
    its own credentials) - today there's exactly one account for the whole
    business, created once at setup.
-3. A shared/database-backed session store, if this ever needs to run as
+2. A shared/database-backed session store, if this ever needs to run as
    more than one server instance.
-4. Actually deploying it (see "Deploying" above) - everything's in place,
+3. Actually deploying it (see "Deploying" above) - everything's in place,
    this just needs your own hosting account.
