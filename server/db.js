@@ -1,6 +1,7 @@
 import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { findOrCreateProperty } from './properties.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const db = new DatabaseSync(path.join(__dirname, 'data.db'))
@@ -10,6 +11,19 @@ db.exec(`
     id TEXT PRIMARY KEY,
     label TEXT NOT NULL,
     pricing TEXT NOT NULL
+  )
+`)
+
+// A property is a house, identified by its address. Jobs link to a
+// property (see contacts.propertyId below) so a house's history stays
+// intact across however many different owners it has over time -
+// that's the whole point: the durable record is the address, not
+// whoever happened to live there for one visit.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS properties (
+    id TEXT PRIMARY KEY,
+    address TEXT NOT NULL,
+    normalizedAddress TEXT NOT NULL UNIQUE
   )
 `)
 
@@ -42,6 +56,8 @@ db.exec(`
 for (const migration of [
   'ALTER TABLE contacts ADD COLUMN quote TEXT',
   'ALTER TABLE contacts ADD COLUMN email TEXT',
+  'ALTER TABLE contacts ADD COLUMN propertyId TEXT',
+  'ALTER TABLE contacts ADD COLUMN createdAt TEXT',
 ]) {
   try {
     db.exec(migration)
@@ -171,6 +187,23 @@ if (contactCount === 0) {
       ],
       total: 920,
     }),
+  )
+}
+
+// Backfill for any contact saved before propertyId/createdAt existed -
+// including the seed rows just inserted above on a fresh database,
+// since their INSERT doesn't set those columns. Safe to run every
+// startup: it only touches rows that still need it.
+const rowsNeedingBackfill = db
+  .prepare('SELECT id, address, propertyId, createdAt FROM contacts WHERE propertyId IS NULL OR createdAt IS NULL')
+  .all()
+for (const row of rowsNeedingBackfill) {
+  const propertyId = row.propertyId ?? findOrCreateProperty(db, row.address)
+  const createdAt = row.createdAt ?? new Date().toISOString()
+  db.prepare('UPDATE contacts SET propertyId = ?, createdAt = ? WHERE id = ?').run(
+    propertyId,
+    createdAt,
+    row.id,
   )
 }
 

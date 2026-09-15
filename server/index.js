@@ -5,6 +5,7 @@ import express from 'express'
 import session from 'express-session'
 import db from './db.js'
 import { hashPassword, verifyPassword } from './auth.js'
+import { findOrCreateProperty } from './properties.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -62,6 +63,8 @@ function rowToContact(row) {
     stage: row.stage,
     scheduledAt: row.scheduledAt ?? '',
     quote: row.quote ? JSON.parse(row.quote) : null,
+    propertyId: row.propertyId ?? null,
+    createdAt: row.createdAt ?? null,
   }
 }
 
@@ -160,9 +163,11 @@ app.get('/api/contacts', requireAuth, (req, res) => {
 
 app.post('/api/contacts', requireAuth, (req, res) => {
   const c = req.body
+  const propertyId = findOrCreateProperty(db, c.address)
+  const createdAt = new Date().toISOString()
   db.prepare(`
-    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote, propertyId, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     c.id,
     c.name,
@@ -174,17 +179,24 @@ app.post('/api/contacts', requireAuth, (req, res) => {
     c.stage,
     c.scheduledAt ?? '',
     c.quote ? JSON.stringify(c.quote) : null,
+    propertyId,
+    createdAt,
   )
-  res.status(201).json(c)
+  res.status(201).json({ ...c, propertyId, createdAt })
 })
 
 app.put('/api/contacts/:id', requireAuth, (req, res) => {
   const existing = db.prepare('SELECT * FROM contacts WHERE id = ?').get(req.params.id)
   if (!existing) return res.status(404).json({ error: 'Not found' })
   const updated = { ...rowToContact(existing), ...req.body }
+  // Re-resolve every save, not just when address is the field being
+  // changed - if the address changed, this relinks the job to the
+  // right property (existing or new); if it didn't, findOrCreateProperty
+  // just returns the same property id it already had.
+  updated.propertyId = findOrCreateProperty(db, updated.address)
   db.prepare(`
     UPDATE contacts
-    SET name = ?, phone = ?, email = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?
+    SET name = ?, phone = ?, email = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?, propertyId = ?
     WHERE id = ?
   `).run(
     updated.name,
@@ -196,6 +208,7 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
     updated.stage,
     updated.scheduledAt,
     updated.quote ? JSON.stringify(updated.quote) : null,
+    updated.propertyId,
     req.params.id,
   )
   res.json(updated)

@@ -5,6 +5,7 @@ import PipelineBoard from './components/PipelineBoard'
 import ServiceManager from './components/ServiceManager'
 import CalendarView from './components/CalendarView'
 import Dashboard from './components/Dashboard'
+import PropertySearch from './components/PropertySearch'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -191,6 +192,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'search' ? 'active' : ''}
+          onClick={() => setView('search')}
+        >
+          Search
+        </button>
+        <button
+          type="button"
           className={view === 'services' ? 'active' : ''}
           onClick={() => setView('services')}
         >
@@ -223,6 +231,13 @@ function App() {
       )}
       {view === 'calendar' && (
         <CalendarView contacts={contacts} services={services} />
+      )}
+      {view === 'search' && (
+        <PropertySearch
+          contacts={contacts}
+          services={services}
+          onEdit={setEditingContactId}
+        />
       )}
       {view === 'services' && (
         <ServiceManager

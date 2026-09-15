@@ -72,6 +72,22 @@ step by step in React with a real Node/Express + SQLite backend.
     upcoming-appointments list. Built from data that already exists - no
     new fields, just a different view of the same contacts. Now the
     default screen on load.
+14. **Properties (address-anchored history)** — every job now links to a
+    `properties` row (matched/created from its address, loosely
+    normalized so "123 Main St" and "123 main st." resolve to the same
+    property) instead of being anchored to the owner's name. A house
+    keeps its full history across however many different owners it's
+    had - the durable record is the address, not whoever lived there for
+    one visit. This is the start of roadmap item 4, resolved in the
+    address-primary direction rather than the customer-primary one
+    originally proposed.
+15. **Search** — a "Search" screen groups every job by property and lets
+    you look one up by address or owner name: pick a house and see its
+    whole history - each visit's date, who owned it then, what was
+    charged, and whether it was paid (a green "Paid" badge; anything
+    else shows its current pipeline stage). Click a name to jump straight
+    into editing that job. Pure client-side grouping over the contacts
+    already loaded - no new API endpoint needed.
 
 ## Roadmap
 
@@ -82,7 +98,7 @@ The full feature list, and where each one stands:
 | 1 | Dashboard | **Done** (milestone 13) |
 | 2 | Leads | Exists as a pipeline stage/filter on Contacts, not a separate entity yet |
 | 3 | Customers | Same as above - "Customer" = later-stage contact |
-| 4 | Properties | Not started - see the architecture note below |
+| 4 | Properties | **Done** (milestone 14) - address-anchored, see below |
 | 5 | Map | Not started |
 | 6 | Estimates | Exists as the quote system (milestones 4, 9) under a different name |
 | 7 | Jobs | Not started as a distinct entity - currently a pipeline stage |
@@ -100,18 +116,16 @@ The full feature list, and where each one stands:
 
 **Build order** (later items depend on earlier ones):
 1. ~~Dashboard~~ — done.
-2. **Customers/Properties split** — the one real architecture decision
-   left before Estimates/Jobs/Invoices can be built on solid ground: can
-   a Customer have more than one Property (a landlord, a repeat customer
-   who moves)? Defaulting to **one property per customer for now** (matches
-   today's model, simplest, easy to extend later) unless that's wrong for
-   how you actually work - say so and it's a straightforward change now,
-   before more is built on top of it.
+2. ~~Properties~~ — done, resolved as address-anchored (see milestone 14):
+   a property can have many jobs/owners over time; a job belongs to
+   exactly one property, found-or-created from its address.
 3. Estimates → Jobs → Invoices → Payments (really one pipeline: a quote
-   becomes a job becomes an invoice becomes a payment).
-4. Notes, Follow-ups, Photos (activity/attachments on a customer or job).
+   becomes a job becomes an invoice becomes a payment) - now naturally
+   scoped per-property instead of per-contact-name.
+4. Notes, Follow-ups, Photos (activity/attachments on a property or job).
 5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
-6. Map, Settings (fairly independent, can slot in anywhere).
+6. Map, Settings (fairly independent, can slot in anywhere) - Properties
+   already has an address to geocode when Map gets built.
 
 ## Running it locally
 
@@ -173,6 +187,10 @@ in a real session store (e.g. one backed by the database) at that point.
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
   compile.
+- `server/properties.js` — `normalizeAddress`/`findOrCreateProperty`, the
+  address-matching logic every contact write goes through so jobs at the
+  same house link to the same property regardless of small typos in how
+  the address was entered.
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
@@ -189,6 +207,10 @@ in a real session store (e.g. one backed by the database) at that point.
   list read the frozen `quote` already saved on each contact instead.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
 - `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`.
+- `src/data/properties.js` — `groupByProperty`/`filterPropertyGroups`, pure
+  functions over the already-loaded contacts array (grouped by
+  `propertyId`, newest job first). No API call - this is client-side
+  reshaping of data the app already has.
 - `src/components/AuthGate.jsx` — the sign-in screen; doubles as the
   one-time account-creation form when `needsSetup` is true.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
@@ -205,10 +227,13 @@ in a real session store (e.g. one backed by the database) at that point.
   tiles + upcoming appointments. The stage stat-tile ramp colors are CSS
   custom properties (`--stage-1` through `--stage-6`) defined in
   `index.css`, from the dataviz skill's validated sequential-blue palette.
+- `src/components/PropertySearch.jsx` — search by address or owner name,
+  see every property's full job history with a Paid/stage badge per job,
+  click a name to edit it.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
   signed in, then fetches contacts/services, calls the API for every
   mutation and updates state from the response, and toggles between
-  dashboard/board/list/calendar/services views.
+  dashboard/board/list/calendar/search/services views.
 - `vite.config.js` — proxies `/api/*` to `http://localhost:3001` in dev,
   so the browser sees same-origin requests and no CORS setup is needed.
 
