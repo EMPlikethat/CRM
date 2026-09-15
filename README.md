@@ -224,6 +224,28 @@ step by step in React with a real Node/Express + SQLite backend.
     deployment (or this app run outside a locked-down sandbox) reaches
     both services over normal internet access with no code changes
     needed.
+24. **Settings** — a new "Settings" tab, closing out the 18-item roadmap.
+    Two sections: a Business profile form (name, phone, email, invoice
+    due-days) backed by a new single-row `settings` table - the same
+    pattern as the `invoice_counter` row - and a Change password form.
+    The business name now shows in the app header *and* the sign-in
+    screen (via a new unauthenticated `GET /api/settings/public`, since
+    that screen loads before anyone's signed in) and in invoice emails,
+    replacing what used to be a hardcoded "My Clean Homie" in three
+    places. Invoice due-days feeds `createInvoice` (previously a
+    hardcoded 30) but only for invoices created from that point on -
+    changing it never rewrites a due date already sent to a customer.
+    Change password was a real, previously-missing gap: there was no way
+    to change the admin password after initial setup at all. It requires
+    the current password to change it (verified server-side the same way
+    login is), matches the 8-character minimum from setup, and hashes
+    with the same `crypto.scrypt` helper. Caught one real bug while
+    testing this: logging out and back in crashed on `settings` being
+    `null` for one render, because `handleLogout` reset `settings` to
+    `null` without also resetting `loading` back to `true` - so the next
+    login's render could land in the gap between `authState.authenticated`
+    flipping true and the data-refetch effect actually running. Fixed by
+    having logout reset `loading` too.
 
 ## Roadmap
 
@@ -248,7 +270,7 @@ The full feature list, and where each one stands:
 | 15 | Profitability | **Done** (milestone 22) |
 | 16 | Reports | **Done** (milestone 22) - one report (profitability) so far |
 | 17 | Service/pricing management | **Done** (milestone 5) |
-| 18 | Settings | Not started |
+| 18 | Settings | **Done** (milestone 24) - all 18 roadmap items now done |
 
 **Build order** (later items depend on earlier ones):
 1. ~~Dashboard~~ — done.
@@ -261,7 +283,10 @@ The full feature list, and where each one stands:
 4. ~~Notes, Follow-ups, Photos~~ — done (milestones 19-20).
 5. ~~Expenses → Profitability → Reports~~ — done (milestones 21-22).
 6. ~~Map~~ — done (milestone 23), using the addresses Properties already
-   had. Settings is the only roadmap item left.
+   had.
+7. ~~Settings~~ — done (milestone 24). All 18 roadmap items are now done;
+   see "Other planned work" below for what's still genuinely open
+   (multi-user accounts, SMS, an actual deployment).
 
 ## Running it locally
 
@@ -322,15 +347,16 @@ Two limitations worth knowing before you rely on this:
 
 **Backend** (`server/`):
 - `server/db.js` — opens `server/data.db` (created automatically) using
-  Node's built-in `node:sqlite`, creates the `contacts`, `services`, and
-  `expenses` tables if they don't exist, and seeds `contacts`/`services`
-  with demo data the first time (`expenses` starts empty).
-  `services`/`measurements`/`quote`/`notes`/`followUps`/`photos` are
-  stored as JSON text columns, since SQLite has no native array/object
-  type — a common, legitimate pattern (Postgres's JSONB column works the
-  same way). `expenses` is a normal relational table instead, since an
-  expense isn't "activity on a contact" the way those are - it's its own
-  record, optionally pointing at a contact via `contactId`.
+  Node's built-in `node:sqlite`, creates the `contacts`, `services`,
+  `expenses`, `properties`, and `settings` tables if they don't exist,
+  and seeds `contacts`/`services`/`settings` with defaults the first time
+  (`expenses` starts empty). `services`/`measurements`/`quote`/`notes`/
+  `followUps`/`photos` are stored as JSON text columns, since SQLite has
+  no native array/object type — a common, legitimate pattern (Postgres's
+  JSONB column works the same way). `expenses`, `properties`, and
+  `settings` are normal relational tables instead - none of them are
+  "activity on a contact" the way those JSON columns are. `settings` is a
+  single row (`id = 1`), the same pattern as `invoice_counter`.
 - `server/index.js` — the Express app: REST endpoints
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
   for `/api/services` and `/api/expenses`) that read/write the database
@@ -343,15 +369,20 @@ Two limitations worth knowing before you rely on this:
   plus `/uploads/*` (session-gated `express.static`, so an `<img>` tag
   just works off the same cookie as everything else), `GET /api/properties`
   and `POST /api/properties/:id/geocode` (manual retry for one that
-  failed to auto-locate), and, in production, static-file serving for the
-  built frontend. Deleting a contact unlinks (doesn't delete) any
-  expenses logged against it - real spending history outlives the job
-  record. On startup, also re-queues a geocode for any property still
-  missing coordinates (covers ones that existed before this feature, or
-  whose first attempt failed).
+  failed to auto-locate), `PUT /api/auth/password`, `GET /api/settings`
+  and `PUT /api/settings` (business profile + invoice due-days), a public
+  `GET /api/settings/public` (business name only, for the sign-in
+  screen), and, in production, static-file serving for the built
+  frontend. Deleting a contact unlinks (doesn't delete) any expenses
+  logged against it - real spending history outlives the job record. On
+  startup, also re-queues a geocode for any property still missing
+  coordinates (covers ones that existed before this feature, or whose
+  first attempt failed).
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
-  compile.
+  compile. `PUT /api/auth/password` re-verifies the current password with
+  the same `verifyPassword` login uses, before hashing and storing a new
+  one.
 - `server/properties.js` — `normalizeAddress`/`findOrCreateProperty`, the
   address-matching logic every contact write goes through so jobs at the
   same house link to the same property regardless of small typos in how
@@ -369,6 +400,9 @@ Two limitations worth knowing before you rely on this:
   come from a single-row `invoice_counter` table (starts at 1001),
   incremented once per invoice and never reused. Each invoice also gets
   a random `payToken` (192 bits), what the public pay page is keyed on.
+  Due date reads `invoiceDueDays` from `settings` (Settings, milestone
+  24) at creation time - a later Settings change never touches an
+  invoice already created.
 - `server/stripe.js` — `getStripe()`, a thin wrapper that returns `null`
   when `STRIPE_SECRET_KEY` isn't set so every caller degrades to a clear
   "not configured" response instead of throwing.
@@ -379,10 +413,13 @@ Two limitations worth knowing before you rely on this:
   `checkout.session.completed` - registered with its own
   `express.raw()` body parser *before* the app's blanket
   `express.json()`, since Stripe's signature check needs the raw body).
-- `server/email.js` — `sendInvoiceEmail(contact, payLink)`, wrapping the
-  Resend SDK the same way `stripe.js` wraps Stripe's: returns
-  `{ sent: false, reason }` instead of throwing when unconfigured, so
-  callers (the PUT handler's fire-and-forget auto-send, and the
+- `server/email.js` — `sendInvoiceEmail(contact, payLink, businessName)`,
+  wrapping the Resend SDK the same way `stripe.js` wraps Stripe's:
+  returns `{ sent: false, reason }` instead of throwing when
+  unconfigured. `businessName` comes from Settings (milestone 24) at the
+  call site rather than being hardcoded, so renaming the business there
+  also changes what customers see in the email. Callers (the PUT
+  handler's fire-and-forget auto-send, and the
   `POST /api/contacts/:id/send-invoice-email` manual-resend route) never
   need a try/catch just to keep the app working without it.
 
@@ -412,7 +449,11 @@ Two limitations worth knowing before you rely on this:
   it renders negatives as `-$X` rather than `$-X`, which only matters
   once Reports (milestone 22) makes a negative number (a loss) possible.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
-- `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`.
+- `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`/
+  `changePassword`.
+- `src/data/settings.js` — `fetchPublicSettings` (no auth - what
+  `AuthGate.jsx` uses for the business name before sign-in),
+  `fetchSettings`/`saveSettings` (full profile, once signed in).
 - `src/data/properties.js` — `groupByProperty`/`filterPropertyGroups`, pure
   functions over the already-loaded contacts array (grouped by
   `propertyId`, newest job first) - client-side reshaping, no API call.
@@ -420,7 +461,11 @@ Two limitations worth knowing before you rely on this:
   (unlike those pure helpers, these do hit the backend, for the
   server-held `lat`/`lng` a property doesn't get from contacts alone).
 - `src/components/AuthGate.jsx` — the sign-in screen; doubles as the
-  one-time account-creation form when `needsSetup` is true.
+  one-time account-creation form when `needsSetup` is true. Fetches the
+  business name from `GET /api/settings/public` on mount so the title
+  reflects whatever's set in Settings (milestone 24) instead of a
+  hardcoded string, falling back to "My Clean Homie" while that request
+  is in flight or if it fails.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
   edit form: pass it an `editingContact` and it pre-fills, changes its
   submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
@@ -475,14 +520,22 @@ Two limitations worth knowing before you rely on this:
   (Revenue/Expenses/Net profit), and a per-job profitability table. Pure
   client-side aggregation over the `contacts`/`expenses` already loaded -
   no API call of its own.
+- `src/components/SettingsView.jsx` — the Settings tab (milestone 24):
+  a business profile form (name/phone/email/invoice due-days) and a
+  change-password form, each its own section with its own save button
+  and status message.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
-  signed in, then fetches contacts/services/expenses/properties, calls
-  the API for every mutation and updates state from the response, and
-  toggles between
-  dashboard/board/list/calendar/search/map/followups/expenses/reports/services
+  signed in, then fetches contacts/services/expenses/properties/settings,
+  calls the API for every mutation and updates state from the response,
+  and toggles between
+  dashboard/board/list/calendar/search/map/followups/expenses/reports/services/settings
   views. Properties are also refetched every time the Map tab opens (not
   just once at login), since new ones geocode in the background on the
   server and a pin should show up without needing a full page reload.
+  `handleLogout` resets `loading` back to `true` alongside clearing all
+  the fetched state - without that, logging back in could render the main
+  app for one frame with `settings` still `null` (a real bug this
+  session hit and fixed - see milestone 24).
 - `vite.config.js` — proxies `/api/*` and `/uploads/*` to
   `http://localhost:3001` in dev, so the browser sees same-origin
   requests and no CORS setup is needed.

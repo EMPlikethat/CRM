@@ -10,6 +10,7 @@ import FollowUpsView from './components/FollowUpsView'
 import ExpensesView from './components/ExpensesView'
 import ReportsView from './components/ReportsView'
 import MapView from './components/MapView'
+import SettingsView from './components/SettingsView'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -33,6 +34,7 @@ import {
 } from './data/services'
 import { fetchExpenses, createExpense, removeExpense } from './data/expenses'
 import { fetchProperties, retryGeocode } from './data/properties'
+import { fetchSettings, saveSettings } from './data/settings'
 
 function App() {
   // null while the initial /auth/status check is in flight.
@@ -41,6 +43,7 @@ function App() {
   const [services, setServices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [properties, setProperties] = useState([])
+  const [settings, setSettings] = useState(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [view, setView] = useState('dashboard')
@@ -60,12 +63,19 @@ function App() {
   useEffect(() => {
     if (!authState?.authenticated) return
     setLoading(true)
-    Promise.all([fetchContacts(), fetchServices(), fetchExpenses(), fetchProperties()])
-      .then(([loadedContacts, loadedServices, loadedExpenses, loadedProperties]) => {
+    Promise.all([
+      fetchContacts(),
+      fetchServices(),
+      fetchExpenses(),
+      fetchProperties(),
+      fetchSettings(),
+    ])
+      .then(([loadedContacts, loadedServices, loadedExpenses, loadedProperties, loadedSettings]) => {
         setContacts(loadedContacts)
         setServices(loadedServices)
         setExpenses(loadedExpenses)
         setProperties(loadedProperties)
+        setSettings(loadedSettings)
       })
       .catch((err) => {
         if (err.status === 401) {
@@ -93,6 +103,13 @@ function App() {
     setServices([])
     setExpenses([])
     setProperties([])
+    setSettings(null)
+    // Otherwise there's a one-render gap on the next login where
+    // authState.authenticated is already true but the data-fetch effect
+    // hasn't run yet - the main UI would render with settings still
+    // null (it crashes reading settings.businessName) instead of
+    // showing "Loading…" until the fetch actually completes.
+    setLoading(true)
     setAuthState({ authenticated: false, needsSetup: false })
   }
 
@@ -191,6 +208,12 @@ function App() {
     setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
   }
 
+  async function updateSettings(updates) {
+    const updated = await saveSettings(updates)
+    setSettings(updated)
+    return updated
+  }
+
   if (loadError) {
     return (
       <main className="app">
@@ -231,7 +254,7 @@ function App() {
     <main className="app">
       <div className="app-header">
         <div>
-          <h1>My Clean Homie</h1>
+          <h1>{settings.businessName}</h1>
           <p className="subtitle">Contacts &amp; leads</p>
         </div>
         <button type="button" className="cancel-btn" onClick={handleLogout}>
@@ -311,6 +334,13 @@ function App() {
         >
           Manage services
         </button>
+        <button
+          type="button"
+          className={view === 'settings' ? 'active' : ''}
+          onClick={() => setView('settings')}
+        >
+          Settings
+        </button>
       </div>
 
       {view === 'dashboard' && (
@@ -374,6 +404,9 @@ function App() {
           onUpdate={updateService}
           onDelete={deleteService}
         />
+      )}
+      {view === 'settings' && (
+        <SettingsView settings={settings} onSave={updateSettings} />
       )}
 
       {editingContact && (

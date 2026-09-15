@@ -38,6 +38,24 @@ try {
   // columns already exist - nothing to do
 }
 
+// Single-row table (like invoice_counter below) for the handful of
+// things a one-business, one-admin CRM actually needs to make editable
+// without a redeploy: what the business is called (shown in the app
+// header and sent to customers in invoice emails) and how many days an
+// invoice's due date defaults to.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    businessName TEXT NOT NULL,
+    businessPhone TEXT NOT NULL DEFAULT '',
+    businessEmail TEXT NOT NULL DEFAULT '',
+    invoiceDueDays INTEGER NOT NULL DEFAULT 30
+  )
+`)
+db.prepare(
+  "INSERT OR IGNORE INTO settings (id, businessName) VALUES (1, 'My Clean Homie')",
+).run()
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

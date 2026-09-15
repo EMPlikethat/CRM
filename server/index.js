@@ -137,6 +137,10 @@ function rowToService(row) {
   return { id: row.id, label: row.label, pricing: JSON.parse(row.pricing) }
 }
 
+function getSettings() {
+  return db.prepare('SELECT * FROM settings WHERE id = 1').get()
+}
+
 function rowToExpense(row) {
   return {
     id: row.id,
@@ -253,6 +257,59 @@ app.post('/api/auth/logout', (req, res) => {
   req.session.destroy(() => {
     res.status(204).end()
   })
+})
+
+app.put('/api/auth/password', requireAuth, (req, res) => {
+  const { currentPassword, newPassword } = req.body
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters' })
+  }
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.session.userId)
+  if (!verifyPassword(currentPassword ?? '', user.passwordHash)) {
+    return res.status(401).json({ error: 'Current password is incorrect' })
+  }
+  db.prepare('UPDATE users SET passwordHash = ? WHERE id = ?').run(
+    hashPassword(newPassword),
+    user.id,
+  )
+  res.status(204).end()
+})
+
+// --- Settings ---
+// Public: just the business name, so the sign-in screen (which loads
+// before anyone is authenticated) can show it instead of a hardcoded
+// title. Everything else about the business stays behind requireAuth.
+
+app.get('/api/settings/public', (req, res) => {
+  res.json({ businessName: getSettings().businessName })
+})
+
+app.get('/api/settings', requireAuth, (req, res) => {
+  res.json(getSettings())
+})
+
+app.put('/api/settings', requireAuth, (req, res) => {
+  const current = getSettings()
+  const businessName = (req.body.businessName ?? '').trim()
+  if (!businessName) {
+    return res.status(400).json({ error: 'Business name is required' })
+  }
+  const invoiceDueDays = Number(req.body.invoiceDueDays)
+  if (!Number.isInteger(invoiceDueDays) || invoiceDueDays < 1) {
+    return res.status(400).json({ error: 'Invoice due days must be a whole number of 1 or more' })
+  }
+  const updated = {
+    ...current,
+    businessName,
+    businessPhone: (req.body.businessPhone ?? '').trim(),
+    businessEmail: (req.body.businessEmail ?? '').trim(),
+    invoiceDueDays,
+  }
+  db.prepare(`
+    UPDATE settings SET businessName = ?, businessPhone = ?, businessEmail = ?, invoiceDueDays = ?
+    WHERE id = 1
+  `).run(updated.businessName, updated.businessPhone, updated.businessEmail, updated.invoiceDueDays)
+  res.json(updated)
 })
 
 // --- Services (all require sign-in) ---
@@ -432,7 +489,7 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
   // A slow or misconfigured email provider should never delay or fail
   // the actual data save above, which is what matters.
   if (!hadInvoiceBefore && updated.invoice && updated.email) {
-    sendInvoiceEmail(updated, payLinkFor(req, updated)).catch((err) =>
+    sendInvoiceEmail(updated, payLinkFor(req, updated), getSettings().businessName).catch((err) =>
       console.error('Auto-send invoice email failed:', err),
     )
   }
@@ -445,7 +502,7 @@ app.post('/api/contacts/:id/send-invoice-email', requireAuth, async (req, res) =
   if (!contact.invoice) {
     return res.status(400).json({ error: 'This job has no invoice yet.' })
   }
-  const result = await sendInvoiceEmail(contact, payLinkFor(req, contact))
+  const result = await sendInvoiceEmail(contact, payLinkFor(req, contact), getSettings().businessName)
   if (!result.sent) {
     const messages = {
       'not-configured': 'Email sending is not set up yet (missing RESEND_API_KEY).',

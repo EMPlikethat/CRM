@@ -1359,3 +1359,20 @@ button:hover {
 .map-unlocated-item:last-child {
   border-bottom: none;
 }
+
+.settings-view h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.settings-hint {
+  margin: 0.25rem 0 0.9rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.settings-status-ok {
+  color: var(--status-good);
+  font-weight: 600;
+  margin-left: 0.5rem;
+}

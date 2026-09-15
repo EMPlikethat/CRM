@@ -8,13 +8,11 @@ function getResend() {
   return client
 }
 
-const FROM = process.env.FROM_EMAIL || 'My Clean Homie <onboarding@resend.dev>'
-
 function currency(amount) {
   return `$${amount.toFixed(2)}`
 }
 
-function buildHtml(contact, payLink) {
+function buildHtml(contact, payLink, businessName) {
   const lines = contact.quote.lineItems
     .map(
       (item) => `
@@ -29,7 +27,7 @@ function buildHtml(contact, payLink) {
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; color:#1a1a1a;">
       <h2 style="margin-bottom:4px;">Invoice ${contact.invoice.number}</h2>
       <p style="color:#555;">
-        Hi ${contact.name}, thanks for choosing My Clean Homie. Here's your invoice
+        Hi ${contact.name}, thanks for choosing ${businessName}. Here's your invoice
         for the work${contact.address ? ` at ${contact.address}` : ''}.
       </p>
       <table style="width:100%; border-collapse:collapse; margin:16px 0;">
@@ -58,18 +56,19 @@ function buildHtml(contact, payLink) {
 // missing API key or a down email provider never breaks the CRM save
 // that triggered this (see the PUT /api/contacts/:id fire-and-forget
 // call in server/index.js).
-export async function sendInvoiceEmail(contact, payLink) {
+export async function sendInvoiceEmail(contact, payLink, businessName) {
   const resend = getResend()
   if (!resend) return { sent: false, reason: 'not-configured' }
   if (!contact.email) return { sent: false, reason: 'no-email' }
   if (!contact.invoice) return { sent: false, reason: 'no-invoice' }
 
+  const from = process.env.FROM_EMAIL || `${businessName} <onboarding@resend.dev>`
   try {
     const { error } = await resend.emails.send({
-      from: FROM,
+      from,
       to: contact.email,
       subject: `Invoice ${contact.invoice.number} — ${currency(contact.quote.total)} due ${contact.invoice.dueDate}`,
-      html: buildHtml(contact, payLink),
+      html: buildHtml(contact, payLink, businessName),
     })
     if (error) return { sent: false, reason: 'send-failed', message: error.message }
     return { sent: true }

@@ -1,11 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { setupAccount, login } from '../data/auth'
+import { fetchPublicSettings } from '../data/settings'
 
 export default function AuthGate({ needsSetup, onAuthenticated }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState(null)
   const [submitting, setSubmitting] = useState(false)
+  // Falls back to the app's own name while the request is in flight (or
+  // if it fails) rather than showing a blank title for a moment.
+  const [businessName, setBusinessName] = useState('My Clean Homie')
+
+  useEffect(() => {
+    fetchPublicSettings()
+      .then((s) => setBusinessName(s.businessName))
+      .catch(() => {})
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -28,7 +38,7 @@ export default function AuthGate({ needsSetup, onAuthenticated }) {
   return (
     <div className="auth-gate">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>My Clean Homie</h1>
+        <h1>{businessName}</h1>
         <p className="subtitle">
           {needsSetup ? 'Create the admin account' : 'Sign in'}
         </p>
