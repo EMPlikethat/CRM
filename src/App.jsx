@@ -152,7 +152,7 @@ function App() {
     <main className="app">
       <div className="app-header">
         <div>
-          <h1>MCH CRM</h1>
+          <h1>My Clean Homie</h1>
           <p className="subtitle">Contacts &amp; leads</p>
         </div>
         <button type="button" className="cancel-btn" onClick={handleLogout}>
@@ -207,7 +207,7 @@ function App() {
       </div>
 
       {view === 'dashboard' && (
-        <Dashboard contacts={contacts} services={services} />
+        <Dashboard contacts={contacts} services={services} onNavigate={setView} />
       )}
       {view === 'board' && (
         <PipelineBoard

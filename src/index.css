@@ -5,18 +5,11 @@
   --muted: #6b6b6b;
   --border: #e0e0e0;
   --accent: #2563eb;
-  /* Ordinal ramp for the pipeline stages (dataviz skill palette, sequential
-     blue, steps 250-550) - same hexes in both color schemes, like the
-     skill's status palette. Used as a left-accent stripe, not a fill, so
-     tile text stays in text tokens rather than needing per-tile contrast
-     checks against a colored background. */
-  --stage-1: #86b6ef;
-  --stage-2: #6da7ec;
-  --stage-3: #5598e7;
-  --stage-4: #3987e5;
-  --stage-5: #2a78d6;
-  --stage-6: #1c5cab;
+  /* Status palette (dataviz skill) - fixed, never themed, same hexes in
+     both color schemes. Reserved for actual state (paid, owed), never
+     used to decorate an otherwise-neutral card. */
   --status-good: #0ca30c;
+  --status-warning: #fab219;
   font: 16px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -378,103 +371,69 @@ select {
   gap: 1.5rem;
 }
 
-.hero-figure {
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.hero-label {
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.hero-value {
-  font-size: 3rem;
-  font-weight: 700;
-  line-height: 1.15;
-  /* Proportional figures, not tabular-nums - this is a standalone big
-     number, not a column that needs to align with others. */
-}
-
-.hero-sublabel {
-  font-size: 0.85rem;
-  color: var(--muted);
-  margin-top: 0.25rem;
-}
-
-.stat-row {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 0.75rem;
-}
-
-.stat-tile {
-  border: 1px solid var(--border);
-  border-left: 4px solid var(--tile-accent);
-  border-radius: 6px;
-  padding: 0.75rem 0.9rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-label {
-  font-size: 0.78rem;
-  color: var(--muted);
-}
-
-.stat-value {
-  font-size: 1.6rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.stat-sub {
+.dashboard-date {
   font-size: 0.8rem;
   color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
 }
 
-.dashboard-section h2 {
-  font-size: 1rem;
-  margin: 0 0 0.75rem;
-}
-
-.upcoming-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.upcoming-item {
+.today-grid {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.15rem 0.75rem;
-  padding: 0.6rem 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.today-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  font-size: 0.9rem;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
-.upcoming-time {
-  grid-row: 1 / 3;
-  align-self: center;
-  color: var(--accent);
-  font-weight: 600;
-  white-space: nowrap;
+.today-card:hover {
+  border-color: var(--accent);
 }
 
-.upcoming-name {
-  font-weight: 600;
+.today-card.inert {
+  cursor: default;
+  opacity: 0.65;
 }
 
-.upcoming-detail {
+.today-card.inert:hover {
+  border-color: var(--border);
+}
+
+/* Status color, reserved for the one card here that's both real data
+   and something owed - never used just to decorate a card. */
+.today-card.warning {
+  border-left: 4px solid var(--status-warning);
+}
+
+.today-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
   color: var(--muted);
+  font-weight: 600;
+}
+
+.today-stat {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.today-substat {
+  margin: 0.2rem 0 0;
   font-size: 0.82rem;
+  color: var(--muted);
 }
 
 .property-search-input {

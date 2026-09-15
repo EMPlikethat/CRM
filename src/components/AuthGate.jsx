@@ -28,7 +28,7 @@ export default function AuthGate({ needsSetup, onAuthenticated }) {
   return (
     <div className="auth-gate">
       <form className="auth-form" onSubmit={handleSubmit}>
-        <h1>MCH CRM</h1>
+        <h1>My Clean Homie</h1>
         <p className="subtitle">
           {needsSetup ? 'Create the admin account' : 'Sign in'}
         </p>

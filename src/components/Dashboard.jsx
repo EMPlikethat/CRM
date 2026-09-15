@@ -1,81 +1,103 @@
-import { STAGES } from '../data/stages'
-import { serviceLabels } from '../data/services'
 import { calculateQuote, formatCurrency } from '../data/quote'
-import { formatSchedule } from '../data/formatSchedule'
 
 function quoteFor(services, c) {
   return c.quote ?? calculateQuote(services, c.services, c.measurements)
 }
 
-function nowLocalString() {
+function todayKey() {
   const d = new Date()
   const pad = (n) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
-export default function Dashboard({ contacts, services }) {
-  const now = nowLocalString()
+function isToday(dateLike) {
+  return Boolean(dateLike) && dateLike.slice(0, 10) === todayKey()
+}
 
-  const byStage = {}
-  for (const stage of STAGES) {
-    byStage[stage.id] = { count: 0, value: 0 }
-  }
-  for (const c of contacts) {
-    const quote = quoteFor(services, c)
-    if (!byStage[c.stage]) continue
-    byStage[c.stage].count += 1
-    byStage[c.stage].value += quote.total
-  }
+function todayLabel() {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  })
+}
 
-  const totalRevenue = byStage.paid?.value ?? 0
-  const activePipelineValue = STAGES.filter((s) => s.id !== 'paid').reduce(
-    (sum, s) => sum + (byStage[s.id]?.value ?? 0),
+export default function Dashboard({ contacts, services, onNavigate }) {
+  const jobsToday = contacts.filter((c) => isToday(c.scheduledAt))
+  const jobsTodayRevenue = jobsToday.reduce(
+    (sum, c) => sum + quoteFor(services, c).total,
     0,
   )
 
-  const upcoming = contacts
-    .filter((c) => c.scheduledAt && c.scheduledAt >= now)
-    .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))
-    .slice(0, 5)
+  const newLeadsToday = contacts.filter(
+    (c) => c.stage === 'lead' && isToday(c.createdAt),
+  )
+
+  const pendingEstimates = contacts.filter((c) => c.stage === 'quoted')
+  const pendingEstimatesValue = pendingEstimates.reduce(
+    (sum, c) => sum + quoteFor(services, c).total,
+    0,
+  )
+
+  const unpaidInvoices = contacts.filter((c) => c.stage === 'invoiced')
+  const unpaidValue = unpaidInvoices.reduce(
+    (sum, c) => sum + quoteFor(services, c).total,
+    0,
+  )
 
   return (
     <div className="dashboard">
-      <div className="hero-figure">
-        <span className="hero-label">Revenue (paid)</span>
-        <span className="hero-value">{formatCurrency(totalRevenue)}</span>
-        <span className="hero-sublabel">
-          {formatCurrency(activePipelineValue)} still active in the pipeline
-        </span>
-      </div>
+      <div className="dashboard-date">Today · {todayLabel()}</div>
 
-      <div className="stat-row">
-        {STAGES.map((stage, i) => (
-          <div key={stage.id} className="stat-tile" style={{ '--tile-accent': `var(--stage-${i + 1})` }}>
-            <span className="stat-label">{stage.label}</span>
-            <span className="stat-value">{byStage[stage.id].count}</span>
-            <span className="stat-sub">{formatCurrency(byStage[stage.id].value)}</span>
-          </div>
-        ))}
-      </div>
+      <div className="today-grid">
+        <button
+          type="button"
+          className="today-card"
+          onClick={() => onNavigate('calendar')}
+        >
+          <h3>Jobs</h3>
+          <p className="today-stat">{jobsToday.length} scheduled</p>
+          <p className="today-substat">
+            {formatCurrency(jobsTodayRevenue)} expected revenue
+          </p>
+        </button>
 
-      <div className="dashboard-section">
-        <h2>Upcoming appointments</h2>
-        {upcoming.length === 0 ? (
-          <p className="empty-state">Nothing scheduled yet.</p>
-        ) : (
-          <ul className="upcoming-list">
-            {upcoming.map((c) => (
-              <li key={c.id} className="upcoming-item">
-                <span className="upcoming-time">{formatSchedule(c.scheduledAt)}</span>
-                <span className="upcoming-name">{c.name}</span>
-                <span className="upcoming-detail">
-                  {serviceLabels(services, c.services)}
-                  {c.address ? ` — ${c.address}` : ''}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+        <div className="today-card inert">
+          <h3>Follow-ups</h3>
+          <p className="today-stat">0 due today</p>
+          <p className="today-substat">Not tracked yet</p>
+        </div>
+
+        <button
+          type="button"
+          className="today-card"
+          onClick={() => onNavigate('board')}
+        >
+          <h3>New leads</h3>
+          <p className="today-stat">{newLeadsToday.length}</p>
+        </button>
+
+        <button
+          type="button"
+          className="today-card"
+          onClick={() => onNavigate('board')}
+        >
+          <h3>Estimates</h3>
+          <p className="today-stat">{pendingEstimates.length} pending</p>
+          <p className="today-substat">
+            {formatCurrency(pendingEstimatesValue)} potential revenue
+          </p>
+        </button>
+
+        <button
+          type="button"
+          className="today-card warning"
+          onClick={() => onNavigate('board')}
+        >
+          <h3>Unpaid</h3>
+          <p className="today-stat">{unpaidInvoices.length} invoices</p>
+          <p className="today-substat">{formatCurrency(unpaidValue)}</p>
+        </button>
       </div>
     </div>
   )

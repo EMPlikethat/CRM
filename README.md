@@ -1,4 +1,4 @@
-# MCH CRM
+# My Clean Homie
 
 A learning project: a CRM for a softwashing/pressure washing business, built
 step by step in React with a real Node/Express + SQLite backend.
@@ -67,11 +67,17 @@ step by step in React with a real Node/Express + SQLite backend.
     that serves the API also serves the built frontend
     (`express.static('dist')` + an index.html fallback), so the whole app
     is one deployable service instead of two. See "Deploying" below.
-13. **Dashboard** — a home screen: a hero figure for total paid revenue,
-    a stat-tile row (one per pipeline stage, count + $ value), and an
-    upcoming-appointments list. Built from data that already exists - no
-    new fields, just a different view of the same contacts. Now the
-    default screen on load.
+13. **Dashboard** — redesigned as a "Today" action screen rather than a
+    revenue-by-stage summary: five cards - Jobs scheduled today (+
+    expected revenue), Follow-ups due (not tracked yet, see below),
+    New leads today, Estimates pending (+ potential revenue), and
+    Unpaid invoices (+ amount owed, the one card with a status-warning
+    accent since it's real money owed). Each card (except Follow-ups)
+    jumps to the relevant view on click. Built entirely from data that
+    already exists. Now the default screen on load. Follow-ups shows
+    "0 due today / Not tracked yet" and isn't clickable - there's no
+    follow-ups entity yet (roadmap item 11), so that card is honest
+    about being a placeholder rather than faking a number.
 14. **Properties (address-anchored history)** — every job now links to a
     `properties` row (matched/created from its address, loosely
     normalized so "123 Main St" and "123 main st." resolve to the same
@@ -223,10 +229,10 @@ in a real session store (e.g. one backed by the database) at that point.
 - `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
 - `src/components/CalendarView.jsx` — month-grid view of every contact's
   `scheduledAt`, grouped by day.
-- `src/components/Dashboard.jsx` — hero revenue figure + per-stage stat
-  tiles + upcoming appointments. The stage stat-tile ramp colors are CSS
-  custom properties (`--stage-1` through `--stage-6`) defined in
-  `index.css`, from the dataviz skill's validated sequential-blue palette.
+- `src/components/Dashboard.jsx` — the "Today" screen: five cards (Jobs,
+  Follow-ups, New leads, Estimates, Unpaid), each computed from
+  `contacts`/`services`, clickable via an `onNavigate` callback that
+  switches the active view.
 - `src/components/PropertySearch.jsx` — search by address or owner name,
   see every property's full job history with a Paid/stage badge per job,
   click a name to edit it.
