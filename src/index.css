@@ -1196,3 +1196,54 @@ button:hover {
 .photo-delete:hover {
   background: #d33;
 }
+
+.expenses-view h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.expense-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.expense-form button {
+  height: 2.4rem;
+}
+
+.expenses-total {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 0.6rem 0.9rem;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.expense-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.expense-table th,
+.expense-table td {
+  text-align: left;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.expense-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.expense-table tbody tr:last-child td {
+  border-bottom: none;
+}

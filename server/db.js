@@ -47,6 +47,21 @@ db.exec(`
 `)
 db.prepare('INSERT OR IGNORE INTO invoice_counter (id, nextNumber) VALUES (1, 1001)').run()
 
+// A business cost - gas, chemicals, equipment, insurance, etc. Optionally
+// linked to the job it was spent on (contactId), so a per-job
+// profitability report can later subtract the right expenses from that
+// job's revenue; general overhead just leaves contactId null.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS expenses (
+    id TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT NOT NULL,
+    date TEXT NOT NULL,
+    contactId TEXT
+  )
+`)
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS contacts (
     id TEXT PRIMARY KEY,

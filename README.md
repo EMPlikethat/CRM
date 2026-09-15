@@ -168,6 +168,19 @@ step by step in React with a real Node/Express + SQLite backend.
     included, on its default web service) wipe local disk on every
     deploy/restart, so uploaded photos won't survive one unless you
     attach a persistent volume - see "Deploying" below.
+21. **Expenses** — a new "Expenses" tab tracks business costs: description,
+    amount, category (Gas & Fuel, Chemicals & Supplies, Equipment, Vehicle
+    & Maintenance, Insurance, Other), date, and an optional link to the
+    job it was spent on. Unlike Notes/Follow-ups/Photos, expenses are
+    their own entity in a new `expenses` table (not a JSON column on
+    `contacts`) since they're not really "activity on a contact" - a
+    running total sits above a table of every expense, newest first.
+    Deleting the linked job doesn't delete its expenses (real spending
+    history shouldn't disappear because a lead got cleaned up) - it just
+    unlinks them, and the table shows "Deleted job" instead of crashing
+    or silently dropping the row. This is groundwork for Profitability
+    (roadmap item 15): once a job can look up its own linked expenses,
+    subtracting them from that job's invoice total is the whole feature.
 
 ## Roadmap
 
@@ -188,7 +201,7 @@ The full feature list, and where each one stands:
 | 11 | Follow-ups | **Done** (milestone 19) |
 | 12 | Photos | **Done** (milestone 20) |
 | 13 | Notes | **Done** (milestone 19) |
-| 14 | Expenses | Not started |
+| 14 | Expenses | **Done** (milestone 21) |
 | 15 | Profitability | Not started - needs Jobs + Invoices + Expenses first |
 | 16 | Reports | Not started - needs most of the above first |
 | 17 | Service/pricing management | **Done** (milestone 5) |
@@ -203,7 +216,8 @@ The full feature list, and where each one stands:
    distinct entity (separate from the pipeline stage) is the one piece of
    this step not done - stays a stage on the contact for now.
 4. ~~Notes, Follow-ups, Photos~~ — done (milestones 19-20).
-5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
+5. ~~Expenses~~ — done (milestone 21). Profitability → Reports is the
+   piece of this step not done yet.
 6. Map, Settings (fairly independent, can slot in anywhere) - Properties
    already has an address to geocode when Map gets built.
 
@@ -266,15 +280,19 @@ Two limitations worth knowing before you rely on this:
 
 **Backend** (`server/`):
 - `server/db.js` — opens `server/data.db` (created automatically) using
-  Node's built-in `node:sqlite`, creates the `contacts` and `services`
-  tables if they don't exist, and seeds them with demo data the first
-  time. `services`/`measurements`/`quote`/`notes`/`followUps` are stored
-  as JSON text columns, since SQLite has no native array/object type — a
-  common, legitimate pattern (Postgres's JSONB column works the same way).
+  Node's built-in `node:sqlite`, creates the `contacts`, `services`, and
+  `expenses` tables if they don't exist, and seeds `contacts`/`services`
+  with demo data the first time (`expenses` starts empty).
+  `services`/`measurements`/`quote`/`notes`/`followUps`/`photos` are
+  stored as JSON text columns, since SQLite has no native array/object
+  type — a common, legitimate pattern (Postgres's JSONB column works the
+  same way). `expenses` is a normal relational table instead, since an
+  expense isn't "activity on a contact" the way those are - it's its own
+  record, optionally pointing at a contact via `contactId`.
 - `server/index.js` — the Express app: REST endpoints
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
-  for `/api/services`) that read/write the database and return JSON, plus
-  `/api/auth/*` (see `server/auth.js`), dedicated
+  for `/api/services` and `/api/expenses`) that read/write the database
+  and return JSON, plus `/api/auth/*` (see `server/auth.js`), dedicated
   `POST/DELETE /api/contacts/:id/notes[/:noteId]`,
   `POST/PUT/DELETE /api/contacts/:id/follow-ups[/:followUpId]`, and
   `POST/DELETE /api/contacts/:id/photos[/:photoId]` (via `multer`,
@@ -282,7 +300,9 @@ Two limitations worth knowing before you rely on this:
   a follow-up, or uploading a photo doesn't need the full contact PUT,
   plus `/uploads/*` (session-gated `express.static`, so an `<img>` tag
   just works off the same cookie as everything else) and, in production,
-  static-file serving for the built frontend.
+  static-file serving for the built frontend. Deleting a contact unlinks
+  (doesn't delete) any expenses logged against it - real spending history
+  outlives the job record.
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
   compile.
@@ -316,12 +336,17 @@ Two limitations worth knowing before you rely on this:
   every other data file builds on, plus `upload` (same idea, but sends a
   `FormData` body with no forced `Content-Type`, so the browser sets the
   correct multipart boundary itself - used for photo uploads).
-- `src/data/contacts.js` / `src/data/services.js` — one function per API
-  call (`fetchContacts`, `createContact`, `saveContactUpdate`,
-  `removeContact`, `sendInvoiceEmail`, `addNote`, `deleteNote`,
-  `addFollowUp`, `toggleFollowUp`, `deleteFollowUp`, `uploadPhoto`,
-  `deletePhoto`, and the equivalents for services). `services.js` also
-  still exports the pure helpers `findService`/`serviceLabels`.
+- `src/data/contacts.js` / `src/data/services.js` / `src/data/expenses.js`
+  — one function per API call (`fetchContacts`, `createContact`,
+  `saveContactUpdate`, `removeContact`, `sendInvoiceEmail`, `addNote`,
+  `deleteNote`, `addFollowUp`, `toggleFollowUp`, `deleteFollowUp`,
+  `uploadPhoto`, `deletePhoto`, `fetchExpenses`, `createExpense`,
+  `saveExpenseUpdate`, `removeExpense`, and the equivalents for services).
+  `services.js` also still exports the pure helpers
+  `findService`/`serviceLabels`.
+- `src/data/expenseCategories.js` — the fixed `EXPENSE_CATEGORIES` list
+  (Gas & Fuel, Chemicals & Supplies, Equipment, Vehicle & Maintenance,
+  Insurance, Other) the expense form's category dropdown is built from.
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
 - `src/data/quote.js` — turns a contact's selected services + measurements
@@ -376,10 +401,15 @@ Two limitations worth knowing before you rely on this:
   follow-up across all contacts, sorted by due date, overdue ones
   flagged; completed ones collapse under a `<details>`. Checking one off
   or clicking its contact name works right from this view.
+- `src/components/ExpensesView.jsx` — add-expense form (description,
+  amount, category, date, optional linked job) plus a running total and
+  a table of every expense, newest first. The job dropdown lists contacts
+  as `address — name`; a deleted linked job shows as "Deleted job"
+  instead of breaking.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
-  signed in, then fetches contacts/services, calls the API for every
-  mutation and updates state from the response, and toggles between
-  dashboard/board/list/calendar/search/followups/services views.
+  signed in, then fetches contacts/services/expenses, calls the API for
+  every mutation and updates state from the response, and toggles between
+  dashboard/board/list/calendar/search/followups/expenses/services views.
 - `vite.config.js` — proxies `/api/*` and `/uploads/*` to
   `http://localhost:3001` in dev, so the browser sees same-origin
   requests and no CORS setup is needed.

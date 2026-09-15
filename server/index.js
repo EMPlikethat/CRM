@@ -136,6 +136,17 @@ function rowToService(row) {
   return { id: row.id, label: row.label, pricing: JSON.parse(row.pricing) }
 }
 
+function rowToExpense(row) {
+  return {
+    id: row.id,
+    description: row.description,
+    amount: row.amount,
+    category: row.category,
+    date: row.date,
+    contactId: row.contactId ?? null,
+  }
+}
+
 function rowToContact(row) {
   return {
     id: row.id,
@@ -265,6 +276,51 @@ app.put('/api/services/:id', requireAuth, (req, res) => {
 
 app.delete('/api/services/:id', requireAuth, (req, res) => {
   db.prepare('DELETE FROM services WHERE id = ?').run(req.params.id)
+  res.status(204).end()
+})
+
+// --- Expenses (all require sign-in) ---
+
+app.get('/api/expenses', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM expenses ORDER BY date DESC').all()
+  res.json(rows.map(rowToExpense))
+})
+
+app.post('/api/expenses', requireAuth, (req, res) => {
+  const { description, amount, category, date, contactId } = req.body
+  if (!description || !amount || !category || !date) {
+    return res
+      .status(400)
+      .json({ error: 'Description, amount, category, and date are required' })
+  }
+  const id = crypto.randomUUID()
+  db.prepare(`
+    INSERT INTO expenses (id, description, amount, category, date, contactId)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(id, description, Number(amount), category, date, contactId || null)
+  res.status(201).json({ id, description, amount: Number(amount), category, date, contactId: contactId || null })
+})
+
+app.put('/api/expenses/:id', requireAuth, (req, res) => {
+  const existing = db.prepare('SELECT * FROM expenses WHERE id = ?').get(req.params.id)
+  if (!existing) return res.status(404).json({ error: 'Not found' })
+  const updated = { ...rowToExpense(existing), ...req.body }
+  db.prepare(`
+    UPDATE expenses SET description = ?, amount = ?, category = ?, date = ?, contactId = ?
+    WHERE id = ?
+  `).run(
+    updated.description,
+    Number(updated.amount),
+    updated.category,
+    updated.date,
+    updated.contactId || null,
+    req.params.id,
+  )
+  res.json(updated)
+})
+
+app.delete('/api/expenses/:id', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id)
   res.status(204).end()
 })
 
@@ -477,6 +533,9 @@ app.delete('/api/contacts/:id', requireAuth, (req, res) => {
       fs.unlink(path.join(uploadsDir, photo.filename), () => {})
     }
   }
+  // Expenses logged against this job outlive it as general records - just
+  // unlink them rather than deleting real spending history.
+  db.prepare('UPDATE expenses SET contactId = NULL WHERE contactId = ?').run(req.params.id)
   db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id)
   res.status(204).end()
 })

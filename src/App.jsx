@@ -7,6 +7,7 @@ import CalendarView from './components/CalendarView'
 import Dashboard from './components/Dashboard'
 import PropertySearch from './components/PropertySearch'
 import FollowUpsView from './components/FollowUpsView'
+import ExpensesView from './components/ExpensesView'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -28,12 +29,14 @@ import {
   saveServiceUpdate,
   removeService,
 } from './data/services'
+import { fetchExpenses, createExpense, removeExpense } from './data/expenses'
 
 function App() {
   // null while the initial /auth/status check is in flight.
   const [authState, setAuthState] = useState(null)
   const [contacts, setContacts] = useState([])
   const [services, setServices] = useState([])
+  const [expenses, setExpenses] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [view, setView] = useState('dashboard')
@@ -53,10 +56,11 @@ function App() {
   useEffect(() => {
     if (!authState?.authenticated) return
     setLoading(true)
-    Promise.all([fetchContacts(), fetchServices()])
-      .then(([loadedContacts, loadedServices]) => {
+    Promise.all([fetchContacts(), fetchServices(), fetchExpenses()])
+      .then(([loadedContacts, loadedServices, loadedExpenses]) => {
         setContacts(loadedContacts)
         setServices(loadedServices)
+        setExpenses(loadedExpenses)
       })
       .catch((err) => {
         if (err.status === 401) {
@@ -72,6 +76,7 @@ function App() {
     await logout()
     setContacts([])
     setServices([])
+    setExpenses([])
     setAuthState({ authenticated: false, needsSetup: false })
   }
 
@@ -153,6 +158,16 @@ function App() {
   async function handleDeletePhoto(contactId, photoId) {
     const updated = await deletePhoto(contactId, photoId)
     setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function addExpense(expense) {
+    const saved = await createExpense(expense)
+    setExpenses((prev) => [saved, ...prev])
+  }
+
+  async function deleteExpense(id) {
+    await removeExpense(id)
+    setExpenses((prev) => prev.filter((e) => e.id !== id))
   }
 
   if (loadError) {
@@ -249,6 +264,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'expenses' ? 'active' : ''}
+          onClick={() => setView('expenses')}
+        >
+          Expenses
+        </button>
+        <button
+          type="button"
           className={view === 'services' ? 'active' : ''}
           onClick={() => setView('services')}
         >
@@ -294,6 +316,14 @@ function App() {
           contacts={contacts}
           onEdit={setEditingContactId}
           onToggleFollowUp={handleToggleFollowUp}
+        />
+      )}
+      {view === 'expenses' && (
+        <ExpensesView
+          contacts={contacts}
+          expenses={expenses}
+          onAdd={addExpense}
+          onDelete={deleteExpense}
         />
       )}
       {view === 'services' && (
