@@ -6,6 +6,7 @@ import ServiceManager from './components/ServiceManager'
 import CalendarView from './components/CalendarView'
 import Dashboard from './components/Dashboard'
 import PropertySearch from './components/PropertySearch'
+import FollowUpsView from './components/FollowUpsView'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -13,6 +14,11 @@ import {
   createContact,
   saveContactUpdate,
   removeContact,
+  addNote,
+  deleteNote,
+  addFollowUp,
+  toggleFollowUp,
+  deleteFollowUp,
 } from './data/contacts'
 import {
   fetchServices,
@@ -112,6 +118,31 @@ function App() {
     setServices((prev) => prev.filter((s) => s.id !== id))
   }
 
+  async function handleAddNote(contactId, text) {
+    const updated = await addNote(contactId, text)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleDeleteNote(contactId, noteId) {
+    const updated = await deleteNote(contactId, noteId)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleAddFollowUp(contactId, text, dueDate) {
+    const updated = await addFollowUp(contactId, text, dueDate)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleToggleFollowUp(contactId, followUpId, done) {
+    const updated = await toggleFollowUp(contactId, followUpId, done)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleDeleteFollowUp(contactId, followUpId) {
+    const updated = await deleteFollowUp(contactId, followUpId)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
   if (loadError) {
     return (
       <main className="app">
@@ -199,6 +230,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'followups' ? 'active' : ''}
+          onClick={() => setView('followups')}
+        >
+          Follow-ups
+        </button>
+        <button
+          type="button"
           className={view === 'services' ? 'active' : ''}
           onClick={() => setView('services')}
         >
@@ -239,6 +277,13 @@ function App() {
           onEdit={setEditingContactId}
         />
       )}
+      {view === 'followups' && (
+        <FollowUpsView
+          contacts={contacts}
+          onEdit={setEditingContactId}
+          onToggleFollowUp={handleToggleFollowUp}
+        />
+      )}
       {view === 'services' && (
         <ServiceManager
           services={services}
@@ -260,6 +305,11 @@ function App() {
               }}
               onCancel={() => setEditingContactId(null)}
               onDelete={deleteContactFromModal}
+              onAddNote={handleAddNote}
+              onDeleteNote={handleDeleteNote}
+              onAddFollowUp={handleAddFollowUp}
+              onToggleFollowUp={handleToggleFollowUp}
+              onDeleteFollowUp={handleDeleteFollowUp}
             />
           </div>
         </div>

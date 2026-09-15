@@ -3,6 +3,21 @@ import { STAGES } from '../data/stages'
 import { calculateQuote, formatCurrency } from '../data/quote'
 import { sendInvoiceEmail } from '../data/contacts'
 
+function todayISO() {
+  const d = new Date()
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+function formatDateTime(iso) {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 function toFormState(contact) {
   return {
     name: contact?.name ?? '',
@@ -25,11 +40,19 @@ export default function ContactForm({
   onSave,
   onCancel,
   onDelete,
+  onAddNote,
+  onDeleteNote,
+  onAddFollowUp,
+  onToggleFollowUp,
+  onDeleteFollowUp,
 }) {
   const isEditing = Boolean(editingContact)
   const [form, setForm] = useState(() => toFormState(editingContact))
   const [linkCopied, setLinkCopied] = useState(false)
   const [emailStatus, setEmailStatus] = useState(null)
+  const [newNoteText, setNewNoteText] = useState('')
+  const [newFollowUpText, setNewFollowUpText] = useState('')
+  const [newFollowUpDate, setNewFollowUpDate] = useState('')
 
   // Only re-initialize when the modal switches to a different contact,
   // not on every contacts-array update - otherwise unrelated changes
@@ -85,6 +108,19 @@ export default function ContactForm({
       setEmailStatus(err.message)
     }
     setTimeout(() => setEmailStatus(null), 4000)
+  }
+
+  async function handleAddNote() {
+    if (!newNoteText.trim()) return
+    await onAddNote(editingContact.id, newNoteText.trim())
+    setNewNoteText('')
+  }
+
+  async function handleAddFollowUp() {
+    if (!newFollowUpText.trim() || !newFollowUpDate) return
+    await onAddFollowUp(editingContact.id, newFollowUpText.trim(), newFollowUpDate)
+    setNewFollowUpText('')
+    setNewFollowUpDate('')
   }
 
   // Computed live from the *current* service rates as you type, so it's
@@ -342,6 +378,104 @@ export default function ContactForm({
               />
             </label>
           </div>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="activity-panel">
+          <h3>Notes</h3>
+          <div className="note-add-form">
+            <input
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleAddNote()
+                }
+              }}
+              placeholder="Add a note…"
+            />
+            <button type="button" onClick={handleAddNote}>
+              Add
+            </button>
+          </div>
+          <ul className="notes-list">
+            {[...editingContact.notes].reverse().map((note) => (
+              <li key={note.id} className="note-item">
+                <div>
+                  <p className="note-text">{note.text}</p>
+                  <span className="note-date">{formatDateTime(note.createdAt)}</span>
+                </div>
+                <button
+                  type="button"
+                  className="note-delete"
+                  onClick={() => onDeleteNote(editingContact.id, note.id)}
+                  aria-label="Delete note"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="activity-panel">
+          <h3>Follow-ups</h3>
+          <div className="followup-add-form">
+            <input
+              value={newFollowUpText}
+              onChange={(e) => setNewFollowUpText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleAddFollowUp()
+                }
+              }}
+              placeholder="What needs following up?"
+            />
+            <input
+              type="date"
+              value={newFollowUpDate}
+              onChange={(e) => setNewFollowUpDate(e.target.value)}
+            />
+            <button type="button" onClick={handleAddFollowUp}>
+              Add
+            </button>
+          </div>
+          <ul className="followups-list">
+            {editingContact.followUps.map((f) => {
+              const overdue = !f.done && f.dueDate < todayISO()
+              return (
+                <li
+                  key={f.id}
+                  className={`followup-item${f.done ? ' done' : ''}${overdue ? ' overdue' : ''}`}
+                >
+                  <label className="followup-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={f.done}
+                      onChange={() =>
+                        onToggleFollowUp(editingContact.id, f.id, !f.done)
+                      }
+                    />
+                    <span className="followup-text">{f.text}</span>
+                  </label>
+                  <span className="followup-date">{f.dueDate}</span>
+                  <button
+                    type="button"
+                    className="note-delete"
+                    onClick={() => onDeleteFollowUp(editingContact.id, f.id)}
+                    aria-label="Delete follow-up"
+                  >
+                    ×
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
         </div>
       )}
 

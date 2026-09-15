@@ -60,7 +60,9 @@ db.exec(`
     scheduledAt TEXT,
     quote TEXT,
     invoice TEXT,
-    payment TEXT
+    payment TEXT,
+    notes TEXT NOT NULL DEFAULT '[]',
+    followUps TEXT NOT NULL DEFAULT '[]'
   )
 `)
 
@@ -74,6 +76,8 @@ for (const migration of [
   'ALTER TABLE contacts ADD COLUMN createdAt TEXT',
   'ALTER TABLE contacts ADD COLUMN invoice TEXT',
   'ALTER TABLE contacts ADD COLUMN payment TEXT',
+  "ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE contacts ADD COLUMN followUps TEXT NOT NULL DEFAULT '[]'",
 ]) {
   try {
     db.exec(migration)

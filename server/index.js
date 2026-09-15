@@ -123,7 +123,14 @@ function rowToContact(row) {
     createdAt: row.createdAt ?? null,
     invoice: row.invoice ? JSON.parse(row.invoice) : null,
     payment: row.payment ? JSON.parse(row.payment) : null,
+    notes: row.notes ? JSON.parse(row.notes) : [],
+    followUps: row.followUps ? JSON.parse(row.followUps) : [],
   }
+}
+
+function getContactOrNull(id) {
+  const row = db.prepare('SELECT * FROM contacts WHERE id = ?').get(id)
+  return row ? rowToContact(row) : null
 }
 
 // Mutates and returns `contact`: generates an invoice the first time its
@@ -325,6 +332,72 @@ app.post('/api/contacts/:id/send-invoice-email', requireAuth, async (req, res) =
     return res.status(400).json({ error: messages[result.reason] || 'Failed to send email.' })
   }
   res.json({ sent: true })
+})
+
+// --- Notes & follow-ups ---
+// Dedicated endpoints rather than going through the general contact
+// PUT: adding a note or checking off a follow-up is a quick, standalone
+// action, not something that should wait on (or risk being lost with)
+// an unrelated edit-form save.
+
+function saveNotesAndFollowUps(id, notes, followUps) {
+  db.prepare('UPDATE contacts SET notes = ?, followUps = ? WHERE id = ?').run(
+    JSON.stringify(notes),
+    JSON.stringify(followUps),
+    id,
+  )
+}
+
+app.post('/api/contacts/:id/notes', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const text = (req.body.text ?? '').trim()
+  if (!text) return res.status(400).json({ error: 'Note text is required' })
+  const notes = [...contact.notes, { id: crypto.randomUUID(), text, createdAt: new Date().toISOString() }]
+  saveNotesAndFollowUps(req.params.id, notes, contact.followUps)
+  res.status(201).json({ ...contact, notes })
+})
+
+app.delete('/api/contacts/:id/notes/:noteId', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const notes = contact.notes.filter((n) => n.id !== req.params.noteId)
+  saveNotesAndFollowUps(req.params.id, notes, contact.followUps)
+  res.json({ ...contact, notes })
+})
+
+app.post('/api/contacts/:id/follow-ups', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const text = (req.body.text ?? '').trim()
+  const dueDate = req.body.dueDate ?? ''
+  if (!text || !dueDate) {
+    return res.status(400).json({ error: 'Follow-up text and due date are required' })
+  }
+  const followUps = [
+    ...contact.followUps,
+    { id: crypto.randomUUID(), text, dueDate, done: false, createdAt: new Date().toISOString() },
+  ]
+  saveNotesAndFollowUps(req.params.id, contact.notes, followUps)
+  res.status(201).json({ ...contact, followUps })
+})
+
+app.put('/api/contacts/:id/follow-ups/:followUpId', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const followUps = contact.followUps.map((f) =>
+    f.id === req.params.followUpId ? { ...f, ...req.body } : f,
+  )
+  saveNotesAndFollowUps(req.params.id, contact.notes, followUps)
+  res.json({ ...contact, followUps })
+})
+
+app.delete('/api/contacts/:id/follow-ups/:followUpId', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const followUps = contact.followUps.filter((f) => f.id !== req.params.followUpId)
+  saveNotesAndFollowUps(req.params.id, contact.notes, followUps)
+  res.json({ ...contact, followUps })
 })
 
 app.delete('/api/contacts/:id', requireAuth, (req, res) => {

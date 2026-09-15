@@ -48,6 +48,12 @@ export default function Dashboard({ contacts, services, onNavigate }) {
     (c) => c.invoice?.dueDate && c.invoice.dueDate < todayKey(),
   ).length
 
+  const dueFollowUpsCount = contacts.reduce(
+    (count, c) =>
+      count + (c.followUps ?? []).filter((f) => !f.done && f.dueDate <= todayKey()).length,
+    0,
+  )
+
   return (
     <div className="dashboard">
       <div className="dashboard-date">Today · {todayLabel()}</div>
@@ -65,11 +71,14 @@ export default function Dashboard({ contacts, services, onNavigate }) {
           </p>
         </button>
 
-        <div className="today-card inert">
+        <button
+          type="button"
+          className="today-card"
+          onClick={() => onNavigate('followups')}
+        >
           <h3>Follow-ups</h3>
-          <p className="today-stat">0 due today</p>
-          <p className="today-substat">Not tracked yet</p>
-        </div>
+          <p className="today-stat">{dueFollowUpsCount} due today</p>
+        </button>
 
         <button
           type="button"

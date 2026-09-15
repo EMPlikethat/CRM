@@ -953,3 +953,183 @@ button:hover {
   border-radius: 6px;
   margin: 0;
 }
+
+.activity-panel {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.activity-panel h3 {
+  margin: 0 0 0.6rem;
+  font-size: 0.9rem;
+}
+
+.note-add-form,
+.followup-add-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.note-add-form input,
+.followup-add-form input {
+  flex: 1;
+}
+
+.followup-add-form input[type='date'] {
+  flex: 0 0 150px;
+}
+
+.notes-list,
+.followups-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.note-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.note-item:last-child {
+  border-bottom: none;
+}
+
+.note-text {
+  margin: 0;
+}
+
+.note-date {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.note-delete {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  padding: 0;
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.note-delete:hover {
+  color: #d33;
+}
+
+.followup-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.followup-item:last-child {
+  border-bottom: none;
+}
+
+.followup-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.followup-text {
+  margin: 0;
+}
+
+.followup-item.done .followup-text {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.followup-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.followup-item.overdue .followup-date {
+  color: var(--status-warning);
+  font-weight: 600;
+}
+
+.followups-view h2 {
+  font-size: 1.1rem;
+  margin: 0 0 1rem;
+}
+
+.followup-list-view {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.followup-view-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+}
+
+.followup-view-item.overdue {
+  border-left: 4px solid var(--status-warning);
+}
+
+.followup-view-item.done {
+  opacity: 0.6;
+}
+
+.followup-view-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.followup-view-text {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.followup-view-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.followup-view-date.overdue {
+  color: var(--status-warning);
+  font-weight: 600;
+}
+
+.followups-done {
+  margin-top: 1.25rem;
+}
+
+.followups-done summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 0.5rem;
+}

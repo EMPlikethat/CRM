@@ -139,6 +139,19 @@ step by step in React with a real Node/Express + SQLite backend.
     number, a per-message fee, and (for US numbers) A2P 10DLC business
     registration with carriers before texts reliably deliver; see "Other
     planned work" below.
+19. **Notes & Follow-ups** — a contact can now hold a running list of
+    timestamped notes and a list of follow-ups (text + due date + done
+    flag), each managed through its own dedicated endpoint so adding a
+    note or checking off a follow-up is instant and doesn't require
+    opening the full edit-and-save form. Both panels live in the edit
+    form, right below the invoice/payment panels. A new "Follow-ups" tab
+    lists every pending follow-up across all contacts in one place,
+    sorted by due date with overdue ones flagged, and a collapsed
+    "completed" section underneath; clicking a follow-up's contact name
+    jumps straight into editing that contact. The Dashboard's Follow-ups
+    card (previously a "not tracked yet" placeholder, milestone 13) now
+    shows a real count of follow-ups due today or earlier and is
+    clickable, matching the other four cards.
 
 ## Roadmap
 
@@ -156,9 +169,9 @@ The full feature list, and where each one stands:
 | 8 | Scheduling | **Done** - the Calendar view (and inline scheduling on board/list) |
 | 9 | Invoices | **Done** (milestones 16-17) - plus a public pay link |
 | 10 | Payments | **Done** (milestones 16-17) - online (Stripe) or manual |
-| 11 | Follow-ups | Not started |
+| 11 | Follow-ups | **Done** (milestone 19) |
 | 12 | Photos | Not started |
-| 13 | Notes | Not started |
+| 13 | Notes | **Done** (milestone 19) |
 | 14 | Expenses | Not started |
 | 15 | Profitability | Not started - needs Jobs + Invoices + Expenses first |
 | 16 | Reports | Not started - needs most of the above first |
@@ -173,7 +186,8 @@ The full feature list, and where each one stands:
 3. ~~Invoices → Payments~~ — done (milestone 16). "Jobs" as its own
    distinct entity (separate from the pipeline stage) is the one piece of
    this step not done - stays a stage on the contact for now.
-4. Notes, Follow-ups, Photos (activity/attachments on a property or job).
+4. ~~Notes, Follow-ups~~ — done (milestone 19). Photos (attachments on a
+   property or job) is the one piece of this step not done yet.
 5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
 6. Map, Settings (fairly independent, can slot in anywhere) - Properties
    already has an address to geocode when Map gets built.
@@ -232,14 +246,17 @@ in a real session store (e.g. one backed by the database) at that point.
 - `server/db.js` — opens `server/data.db` (created automatically) using
   Node's built-in `node:sqlite`, creates the `contacts` and `services`
   tables if they don't exist, and seeds them with demo data the first
-  time. `services`/`measurements`/`quote` are stored as JSON text
-  columns, since SQLite has no native array/object type — a common,
-  legitimate pattern (Postgres's JSONB column works the same way).
+  time. `services`/`measurements`/`quote`/`notes`/`followUps` are stored
+  as JSON text columns, since SQLite has no native array/object type — a
+  common, legitimate pattern (Postgres's JSONB column works the same way).
 - `server/index.js` — the Express app: REST endpoints
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
   for `/api/services`) that read/write the database and return JSON, plus
-  `/api/auth/*` (see `server/auth.js`) and, in production, static-file
-  serving for the built frontend.
+  `/api/auth/*` (see `server/auth.js`), dedicated
+  `POST/DELETE /api/contacts/:id/notes[/:noteId]` and
+  `POST/PUT/DELETE /api/contacts/:id/follow-ups[/:followUpId]` routes so
+  adding a note or toggling a follow-up doesn't need the full contact PUT,
+  and, in production, static-file serving for the built frontend.
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
   compile.
@@ -273,8 +290,9 @@ in a real session store (e.g. one backed by the database) at that point.
   every other data file builds on.
 - `src/data/contacts.js` / `src/data/services.js` — one function per API
   call (`fetchContacts`, `createContact`, `saveContactUpdate`,
-  `removeContact`, `sendInvoiceEmail`, and the equivalents for services).
-  `services.js` also still exports the pure helpers
+  `removeContact`, `sendInvoiceEmail`, `addNote`, `deleteNote`,
+  `addFollowUp`, `toggleFollowUp`, `deleteFollowUp`, and the equivalents
+  for services). `services.js` also still exports the pure helpers
   `findService`/`serviceLabels`.
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
@@ -299,7 +317,10 @@ in a real session store (e.g. one backed by the database) at that point.
   "Copy link" and, if the contact has an email on file, "Send email" to
   resend the invoice on demand. Number, issue date, and the fact that
   either exists at all are never set from this form - only the server
-  decides when one gets created.
+  decides when one gets created. When editing, also shows the Notes and
+  Follow-ups panels: add-forms plus a reverse-chronological notes list and
+  a checkbox-driven follow-ups list, each action hitting its own endpoint
+  and updating immediately, no save button needed.
 - `src/PayInvoice.jsx` / `src/main.jsx` — the public customer-facing pay
   page. Not part of the authenticated app: `main.jsx` checks
   `window.location.pathname` before rendering anything and renders this
@@ -316,15 +337,20 @@ in a real session store (e.g. one backed by the database) at that point.
   Follow-ups, New leads, Estimates, Unpaid), each computed from
   `contacts`/`services`, clickable via an `onNavigate` callback that
   switches the active view. Unpaid also flags how many invoices are past
-  their due date.
+  their due date; Follow-ups counts everything due today or earlier that
+  isn't done yet.
 - `src/components/PropertySearch.jsx` — search by address or owner name,
   see every property's full job history with a Paid/stage badge per job
   (plus the real payment method/date once paid, or the invoice number
   and due date while still owed), click a name to edit it.
+- `src/components/FollowUpsView.jsx` — flat list of every pending
+  follow-up across all contacts, sorted by due date, overdue ones
+  flagged; completed ones collapse under a `<details>`. Checking one off
+  or clicking its contact name works right from this view.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
   signed in, then fetches contacts/services, calls the API for every
   mutation and updates state from the response, and toggles between
-  dashboard/board/list/calendar/search/services views.
+  dashboard/board/list/calendar/search/followups/services views.
 - `vite.config.js` — proxies `/api/*` to `http://localhost:3001` in dev,
   so the browser sees same-origin requests and no CORS setup is needed.
 
