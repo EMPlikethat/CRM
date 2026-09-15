@@ -79,6 +79,33 @@ select {
   color: var(--text);
 }
 
+.services-field {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.services-field legend {
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 0 0.25rem;
+}
+
+.service-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  margin: 0.3rem 0;
+}
+
+.service-checkbox input {
+  width: auto;
+  padding: 0;
+}
+
 button {
   font: inherit;
   padding: 0.5rem 1rem;
@@ -229,4 +256,23 @@ button:hover {
 
 .card-delete:hover {
   color: #d33;
+}
+
+.card-schedule-btn {
+  display: block;
+  margin-top: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  background: transparent;
+  color: var(--accent);
+  border: 1px dashed var(--accent);
+  border-radius: 4px;
+}
+
+.card-schedule-input {
+  display: block;
+  width: 100%;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  padding: 0.3rem;
 }

@@ -12,6 +12,9 @@ step by step in React.
    columns using the browser's native HTML5 drag-and-drop API. A "List"
    toggle switches to the flat table view; both read/write the same
    underlying state, so a change in one shows up in the other.
+3. **Multiple services + scheduling** — a contact can select any combination
+   of services (checkboxes, not a single dropdown), and gets a scheduled
+   appointment time editable inline from either view.
 
 No backend yet, on purpose — the first milestones stay focused on React
 fundamentals (components, state, forms, native browser APIs) before adding
@@ -21,6 +24,9 @@ the complexity of a server.
 
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
+- `src/data/services.js` — the services this business offers. Add/rename a
+  service here and it shows up everywhere (form checkboxes, table, cards).
+- `src/data/formatSchedule.js` — formats a scheduled datetime for display.
 - `src/data/contacts.js` — localStorage read/write. This is the one file
   you'd swap out to move to a real backend (e.g. Supabase/Postgres) later.
 - `src/components/ContactForm.jsx` — add-contact form.

@@ -25,6 +25,12 @@ function App() {
     )
   }
 
+  function updateSchedule(id, scheduledAt) {
+    setContacts((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, scheduledAt } : c)),
+    )
+  }
+
   function deleteContact(id) {
     setContacts((prev) => prev.filter((c) => c.id !== id))
   }
@@ -56,12 +62,14 @@ function App() {
         <PipelineBoard
           contacts={contacts}
           onUpdateStage={updateStage}
+          onUpdateSchedule={updateSchedule}
           onDelete={deleteContact}
         />
       ) : (
         <ContactList
           contacts={contacts}
           onUpdateStage={updateStage}
+          onUpdateSchedule={updateSchedule}
           onDelete={deleteContact}
         />
       )}

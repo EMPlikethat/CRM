@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { STAGES } from '../data/stages'
+import { SERVICES } from '../data/services'
 
 const EMPTY_FORM = {
   name: '',
   phone: '',
   address: '',
-  service: '',
+  services: [],
   quotedPrice: '',
   stage: STAGES[0].id,
+  scheduledAt: '',
 }
 
 export default function ContactForm({ onAdd }) {
@@ -15,6 +17,15 @@ export default function ContactForm({ onAdd }) {
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  function toggleService(serviceId) {
+    setForm((prev) => ({
+      ...prev,
+      services: prev.services.includes(serviceId)
+        ? prev.services.filter((id) => id !== serviceId)
+        : [...prev.services, serviceId],
+    }))
   }
 
   function handleSubmit(e) {
@@ -51,14 +62,6 @@ export default function ContactForm({ onAdd }) {
           />
         </label>
         <label>
-          Service
-          <input
-            value={form.service}
-            onChange={(e) => updateField('service', e.target.value)}
-            placeholder="e.g. Roof softwash"
-          />
-        </label>
-        <label>
           Quoted price ($)
           <input
             value={form.quotedPrice}
@@ -79,7 +82,30 @@ export default function ContactForm({ onAdd }) {
             ))}
           </select>
         </label>
+        <label>
+          Scheduled time
+          <input
+            type="datetime-local"
+            value={form.scheduledAt}
+            onChange={(e) => updateField('scheduledAt', e.target.value)}
+          />
+        </label>
       </div>
+
+      <fieldset className="services-field">
+        <legend>Services</legend>
+        {SERVICES.map((service) => (
+          <label key={service.id} className="service-checkbox">
+            <input
+              type="checkbox"
+              checked={form.services.includes(service.id)}
+              onChange={() => toggleService(service.id)}
+            />
+            {service.label}
+          </label>
+        ))}
+      </fieldset>
+
       <button type="submit">Add contact</button>
     </form>
   )

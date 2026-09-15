@@ -8,20 +8,40 @@ const SEED_CONTACTS = [
     name: 'Maria Alvarez',
     phone: '555-0142',
     address: '118 Birchwood Dr',
-    service: 'House softwash',
+    services: ['roof-softwash', 'gutter-debris'],
     quotedPrice: '350',
     stage: 'lead',
+    scheduledAt: '',
   },
   {
     id: 'seed-2',
     name: 'Tom Nguyen',
     phone: '555-0198',
     address: '42 Lakeview Ct',
-    service: 'Driveway pressure wash',
+    services: ['driveway-entree'],
     quotedPrice: '180',
     stage: 'quoted',
+    scheduledAt: '',
+  },
+  {
+    id: 'seed-3',
+    name: 'Sara Kim',
+    phone: '555-0177',
+    address: '7 Willow Ave',
+    services: ['roof-softwash', 'driveway-entree'],
+    quotedPrice: '520',
+    stage: 'scheduled',
+    scheduledAt: nextFriday9am(),
   },
 ]
+
+function nextFriday9am() {
+  const d = new Date()
+  d.setDate(d.getDate() + ((5 - d.getDay() + 7) % 7 || 7))
+  d.setHours(9, 0, 0, 0)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
 
 export function loadContacts() {
   const raw = localStorage.getItem(STORAGE_KEY)

@@ -1,6 +1,12 @@
 import { STAGES } from '../data/stages'
+import { serviceLabels } from '../data/services'
 
-export default function ContactList({ contacts, onUpdateStage, onDelete }) {
+export default function ContactList({
+  contacts,
+  onUpdateStage,
+  onUpdateSchedule,
+  onDelete,
+}) {
   if (contacts.length === 0) {
     return <p className="empty-state">No contacts yet — add your first lead above.</p>
   }
@@ -12,9 +18,10 @@ export default function ContactList({ contacts, onUpdateStage, onDelete }) {
           <th>Name</th>
           <th>Phone</th>
           <th>Address</th>
-          <th>Service</th>
+          <th>Services</th>
           <th>Quoted</th>
           <th>Stage</th>
+          <th>Scheduled</th>
           <th></th>
         </tr>
       </thead>
@@ -24,7 +31,7 @@ export default function ContactList({ contacts, onUpdateStage, onDelete }) {
             <td>{c.name}</td>
             <td>{c.phone}</td>
             <td>{c.address}</td>
-            <td>{c.service}</td>
+            <td>{serviceLabels(c.services)}</td>
             <td>{c.quotedPrice ? `$${c.quotedPrice}` : '—'}</td>
             <td>
               <select
@@ -38,6 +45,14 @@ export default function ContactList({ contacts, onUpdateStage, onDelete }) {
                   </option>
                 ))}
               </select>
+            </td>
+            <td>
+              <input
+                type="datetime-local"
+                value={c.scheduledAt || ''}
+                onChange={(e) => onUpdateSchedule(c.id, e.target.value)}
+                aria-label={`Scheduled time for ${c.name}`}
+              />
             </td>
             <td>
               <button
