@@ -2,6 +2,7 @@ import { DatabaseSync } from 'node:sqlite'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { findOrCreateProperty } from './properties.js'
+import { createInvoice, createPayment } from './invoices.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const db = new DatabaseSync(path.join(__dirname, 'data.db'))
@@ -35,6 +36,16 @@ db.exec(`
   )
 `)
 
+// Single-row table holding the next invoice number to hand out. Starts
+// at 1001 so invoice numbers look like a real sequence, not test data.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS invoice_counter (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    nextNumber INTEGER NOT NULL
+  )
+`)
+db.prepare('INSERT OR IGNORE INTO invoice_counter (id, nextNumber) VALUES (1, 1001)').run()
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS contacts (
     id TEXT PRIMARY KEY,
@@ -46,7 +57,9 @@ db.exec(`
     measurements TEXT NOT NULL DEFAULT '{}',
     stage TEXT NOT NULL,
     scheduledAt TEXT,
-    quote TEXT
+    quote TEXT,
+    invoice TEXT,
+    payment TEXT
   )
 `)
 
@@ -58,6 +71,8 @@ for (const migration of [
   'ALTER TABLE contacts ADD COLUMN email TEXT',
   'ALTER TABLE contacts ADD COLUMN propertyId TEXT',
   'ALTER TABLE contacts ADD COLUMN createdAt TEXT',
+  'ALTER TABLE contacts ADD COLUMN invoice TEXT',
+  'ALTER TABLE contacts ADD COLUMN payment TEXT',
 ]) {
   try {
     db.exec(migration)
@@ -203,6 +218,30 @@ for (const row of rowsNeedingBackfill) {
   db.prepare('UPDATE contacts SET propertyId = ?, createdAt = ? WHERE id = ?').run(
     propertyId,
     createdAt,
+    row.id,
+  )
+}
+
+// Defensive backfill for any contact that reached "invoiced"/"paid"
+// before this feature existed - shouldn't happen on this project's own
+// history, but a real deployed database could already have such rows.
+const rowsNeedingInvoice = db
+  .prepare("SELECT id FROM contacts WHERE stage IN ('invoiced', 'paid') AND invoice IS NULL")
+  .all()
+for (const row of rowsNeedingInvoice) {
+  db.prepare('UPDATE contacts SET invoice = ? WHERE id = ?').run(
+    JSON.stringify(createInvoice(db)),
+    row.id,
+  )
+}
+
+const rowsNeedingPayment = db
+  .prepare("SELECT id, quote FROM contacts WHERE stage = 'paid' AND payment IS NULL")
+  .all()
+for (const row of rowsNeedingPayment) {
+  const total = row.quote ? JSON.parse(row.quote).total : 0
+  db.prepare('UPDATE contacts SET payment = ? WHERE id = ?').run(
+    JSON.stringify(createPayment(total)),
     row.id,
   )
 }

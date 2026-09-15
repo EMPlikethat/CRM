@@ -89,6 +89,17 @@ export default function PropertySearch({ contacts, services, onEdit }) {
                         >
                           {isPaid ? 'Paid' : stageLabel(job.stage)}
                         </span>
+                        {isPaid && job.payment && (
+                          <div className="property-job-sub">
+                            {formatDate(job.payment.date)}
+                            {job.payment.method ? ` · ${job.payment.method}` : ''}
+                          </div>
+                        )}
+                        {!isPaid && job.invoice && (
+                          <div className="property-job-sub">
+                            {job.invoice.number} · due {formatDate(job.invoice.dueDate)}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )

@@ -94,6 +94,21 @@ step by step in React with a real Node/Express + SQLite backend.
     else shows its current pipeline stage). Click a name to jump straight
     into editing that job. Pure client-side grouping over the contacts
     already loaded - no new API endpoint needed.
+16. **Invoices & Payments** — moving a job's stage to "Invoiced" now
+    generates a real invoice: a sequential number (`INV-1001`, ...,
+    tracked server-side so numbers never repeat or go backwards even
+    across deletes), an issue date, and a due date (30 days out by
+    default, editable per-job in the edit form). Moving to "Paid"
+    generates a payment record - date, method, amount - with the amount
+    pre-filled from the quote total and the method left blank for you to
+    fill in (there's no way to know *how* someone paid without being
+    told). Skipping straight from an earlier stage to "Paid" still
+    generates both records, in order, so nothing is ever "paid" without
+    also being "invoiced." Each is only ever created once per job -
+    later saves never regenerate or overwrite an existing invoice number
+    or payment date. Search now shows the real payment method/date (or
+    the invoice number and due date, if still unpaid) instead of just a
+    stage badge, and the Dashboard's Unpaid card flags overdue invoices.
 
 ## Roadmap
 
@@ -109,8 +124,8 @@ The full feature list, and where each one stands:
 | 6 | Estimates | Exists as the quote system (milestones 4, 9) under a different name |
 | 7 | Jobs | Not started as a distinct entity - currently a pipeline stage |
 | 8 | Scheduling | **Done** - the Calendar view (and inline scheduling on board/list) |
-| 9 | Invoices | Not started |
-| 10 | Payments | Not started |
+| 9 | Invoices | **Done** (milestone 16) |
+| 10 | Payments | **Done** (milestone 16) |
 | 11 | Follow-ups | Not started |
 | 12 | Photos | Not started |
 | 13 | Notes | Not started |
@@ -125,9 +140,9 @@ The full feature list, and where each one stands:
 2. ~~Properties~~ — done, resolved as address-anchored (see milestone 14):
    a property can have many jobs/owners over time; a job belongs to
    exactly one property, found-or-created from its address.
-3. Estimates → Jobs → Invoices → Payments (really one pipeline: a quote
-   becomes a job becomes an invoice becomes a payment) - now naturally
-   scoped per-property instead of per-contact-name.
+3. ~~Invoices → Payments~~ — done (milestone 16). "Jobs" as its own
+   distinct entity (separate from the pipeline stage) is the one piece of
+   this step not done - stays a stage on the contact for now.
 4. Notes, Follow-ups, Photos (activity/attachments on a property or job).
 5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
 6. Map, Settings (fairly independent, can slot in anywhere) - Properties
@@ -197,6 +212,9 @@ in a real session store (e.g. one backed by the database) at that point.
   address-matching logic every contact write goes through so jobs at the
   same house link to the same property regardless of small typos in how
   the address was entered.
+- `server/invoices.js` — `createInvoice`/`createPayment`. Invoice numbers
+  come from a single-row `invoice_counter` table (starts at 1001),
+  incremented once per invoice and never reused.
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
@@ -222,6 +240,11 @@ in a real session store (e.g. one backed by the database) at that point.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
   edit form: pass it an `editingContact` and it pre-fills, changes its
   submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
+  Once a job has an `invoice`/`payment` (server-generated - see
+  `server/invoices.js`), shows an editable panel for each: due date on
+  the invoice, date/method/amount on the payment. Number, issue date,
+  and the fact that either exists at all are never set from this form -
+  only the server decides when one gets created.
 - `src/components/ContactList.jsx` — contact table with inline stage
   editing and delete; click a name to edit.
 - `src/components/PipelineBoard.jsx` — Kanban-style board, one column per
@@ -232,10 +255,12 @@ in a real session store (e.g. one backed by the database) at that point.
 - `src/components/Dashboard.jsx` — the "Today" screen: five cards (Jobs,
   Follow-ups, New leads, Estimates, Unpaid), each computed from
   `contacts`/`services`, clickable via an `onNavigate` callback that
-  switches the active view.
+  switches the active view. Unpaid also flags how many invoices are past
+  their due date.
 - `src/components/PropertySearch.jsx` — search by address or owner name,
-  see every property's full job history with a Paid/stage badge per job,
-  click a name to edit it.
+  see every property's full job history with a Paid/stage badge per job
+  (plus the real payment method/date once paid, or the invoice number
+  and due date while still owed), click a name to edit it.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
   signed in, then fetches contacts/services, calls the API for every
   mutation and updates state from the response, and toggles between

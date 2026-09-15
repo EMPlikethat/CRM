@@ -12,6 +12,8 @@ function toFormState(contact) {
     measurements: contact?.measurements ?? {},
     stage: contact?.stage ?? STAGES[0].id,
     scheduledAt: contact?.scheduledAt ?? '',
+    invoice: contact?.invoice ?? null,
+    payment: contact?.payment ?? null,
   }
 }
 
@@ -54,6 +56,14 @@ export default function ContactForm({
         [serviceId]: { ...prev.measurements[serviceId], [field]: value },
       },
     }))
+  }
+
+  function updateInvoiceField(field, value) {
+    setForm((prev) => ({ ...prev, invoice: { ...prev.invoice, [field]: value } }))
+  }
+
+  function updatePaymentField(field, value) {
+    setForm((prev) => ({ ...prev, payment: { ...prev.payment, [field]: value } }))
   }
 
   // Computed live from the *current* service rates as you type, so it's
@@ -224,6 +234,62 @@ export default function ContactForm({
           <div className="quote-total">
             <span>Total</span>
             <span>{formatCurrency(quote.total)}</span>
+          </div>
+        </div>
+      )}
+
+      {form.invoice && (
+        <div className="invoice-panel">
+          <h3>Invoice {form.invoice.number}</h3>
+          <div className="invoice-grid">
+            <div className="invoice-readonly">
+              <span className="invoice-readonly-label">Issued</span>
+              <span>{form.invoice.issueDate}</span>
+            </div>
+            <label>
+              Due date
+              <input
+                type="date"
+                value={form.invoice.dueDate}
+                onChange={(e) => updateInvoiceField('dueDate', e.target.value)}
+              />
+            </label>
+          </div>
+        </div>
+      )}
+
+      {form.payment && (
+        <div className="invoice-panel">
+          <h3>Payment</h3>
+          <div className="invoice-grid">
+            <label>
+              Date paid
+              <input
+                type="date"
+                value={form.payment.date}
+                onChange={(e) => updatePaymentField('date', e.target.value)}
+              />
+            </label>
+            <label>
+              Method
+              <input
+                value={form.payment.method}
+                onChange={(e) => updatePaymentField('method', e.target.value)}
+                placeholder="e.g. Check #1234, Venmo, Cash"
+              />
+            </label>
+            <label>
+              Amount ($)
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.payment.amount}
+                onChange={(e) =>
+                  updatePaymentField('amount', Number(e.target.value))
+                }
+              />
+            </label>
           </div>
         </div>
       )}

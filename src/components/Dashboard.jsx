@@ -44,6 +44,9 @@ export default function Dashboard({ contacts, services, onNavigate }) {
     (sum, c) => sum + quoteFor(services, c).total,
     0,
   )
+  const overdueCount = unpaidInvoices.filter(
+    (c) => c.invoice?.dueDate && c.invoice.dueDate < todayKey(),
+  ).length
 
   return (
     <div className="dashboard">
@@ -96,7 +99,10 @@ export default function Dashboard({ contacts, services, onNavigate }) {
         >
           <h3>Unpaid</h3>
           <p className="today-stat">{unpaidInvoices.length} invoices</p>
-          <p className="today-substat">{formatCurrency(unpaidValue)}</p>
+          <p className="today-substat">
+            {formatCurrency(unpaidValue)}
+            {overdueCount > 0 ? ` · ${overdueCount} overdue` : ''}
+          </p>
         </button>
       </div>
     </div>

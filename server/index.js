@@ -6,6 +6,7 @@ import session from 'express-session'
 import db from './db.js'
 import { hashPassword, verifyPassword } from './auth.js'
 import { findOrCreateProperty } from './properties.js'
+import { createInvoice, createPayment } from './invoices.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -65,7 +66,23 @@ function rowToContact(row) {
     quote: row.quote ? JSON.parse(row.quote) : null,
     propertyId: row.propertyId ?? null,
     createdAt: row.createdAt ?? null,
+    invoice: row.invoice ? JSON.parse(row.invoice) : null,
+    payment: row.payment ? JSON.parse(row.payment) : null,
   }
+}
+
+// Mutates and returns `contact`: generates an invoice the first time its
+// stage reaches "invoiced" (or skips straight to "paid"), and a payment
+// the first time it reaches "paid" - each only ever created once per
+// contact, never regenerated on a later save.
+function applyInvoiceAndPayment(contact) {
+  if ((contact.stage === 'invoiced' || contact.stage === 'paid') && !contact.invoice) {
+    contact.invoice = createInvoice(db)
+  }
+  if (contact.stage === 'paid' && !contact.payment) {
+    contact.payment = createPayment(contact.quote?.total ?? 0)
+  }
+  return contact
 }
 
 // --- Auth ---
@@ -162,12 +179,13 @@ app.get('/api/contacts', requireAuth, (req, res) => {
 })
 
 app.post('/api/contacts', requireAuth, (req, res) => {
-  const c = req.body
+  const c = { invoice: null, payment: null, ...req.body }
   const propertyId = findOrCreateProperty(db, c.address)
   const createdAt = new Date().toISOString()
+  applyInvoiceAndPayment(c)
   db.prepare(`
-    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote, propertyId, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote, propertyId, createdAt, invoice, payment)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     c.id,
     c.name,
@@ -181,6 +199,8 @@ app.post('/api/contacts', requireAuth, (req, res) => {
     c.quote ? JSON.stringify(c.quote) : null,
     propertyId,
     createdAt,
+    c.invoice ? JSON.stringify(c.invoice) : null,
+    c.payment ? JSON.stringify(c.payment) : null,
   )
   res.status(201).json({ ...c, propertyId, createdAt })
 })
@@ -194,9 +214,10 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
   // right property (existing or new); if it didn't, findOrCreateProperty
   // just returns the same property id it already had.
   updated.propertyId = findOrCreateProperty(db, updated.address)
+  applyInvoiceAndPayment(updated)
   db.prepare(`
     UPDATE contacts
-    SET name = ?, phone = ?, email = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?, propertyId = ?
+    SET name = ?, phone = ?, email = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?, propertyId = ?, invoice = ?, payment = ?
     WHERE id = ?
   `).run(
     updated.name,
@@ -209,6 +230,8 @@ app.put('/api/contacts/:id', requireAuth, (req, res) => {
     updated.scheduledAt,
     updated.quote ? JSON.stringify(updated.quote) : null,
     updated.propertyId,
+    updated.invoice ? JSON.stringify(updated.invoice) : null,
+    updated.payment ? JSON.stringify(updated.payment) : null,
     req.params.id,
   )
   res.json(updated)
