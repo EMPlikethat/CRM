@@ -11,6 +11,8 @@ function App() {
   const [contacts, setContacts] = useState(loadContacts)
   const [services, setServices] = useState(loadServices)
   const [view, setView] = useState('board')
+  const [editingContactId, setEditingContactId] = useState(null)
+  const editingContact = contacts.find((c) => c.id === editingContactId) ?? null
 
   // Every time contacts/services change, persist them so a page refresh
   // doesn't wipe your data. These are the two lines you'll replace with
@@ -41,6 +43,17 @@ function App() {
 
   function deleteContact(id) {
     setContacts((prev) => prev.filter((c) => c.id !== id))
+  }
+
+  function updateContact(id, updates) {
+    setContacts((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...updates } : c)),
+    )
+  }
+
+  function deleteContactFromModal(id) {
+    deleteContact(id)
+    setEditingContactId(null)
   }
 
   function addService(service) {
@@ -101,6 +114,7 @@ function App() {
           onUpdateStage={updateStage}
           onUpdateSchedule={updateSchedule}
           onDelete={deleteContact}
+          onEdit={setEditingContactId}
         />
       )}
       {view === 'list' && (
@@ -110,6 +124,7 @@ function App() {
           onUpdateStage={updateStage}
           onUpdateSchedule={updateSchedule}
           onDelete={deleteContact}
+          onEdit={setEditingContactId}
         />
       )}
       {view === 'calendar' && (
@@ -122,6 +137,23 @@ function App() {
           onUpdate={updateService}
           onDelete={deleteService}
         />
+      )}
+
+      {editingContact && (
+        <div className="modal-overlay" onClick={() => setEditingContactId(null)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <ContactForm
+              services={services}
+              editingContact={editingContact}
+              onSave={(id, updates) => {
+                updateContact(id, updates)
+                setEditingContactId(null)
+              }}
+              onCancel={() => setEditingContactId(null)}
+              onDelete={deleteContactFromModal}
+            />
+          </div>
+        </div>
       )}
     </main>
   )

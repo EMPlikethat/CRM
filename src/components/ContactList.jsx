@@ -8,6 +8,7 @@ export default function ContactList({
   onUpdateStage,
   onUpdateSchedule,
   onDelete,
+  onEdit,
 }) {
   if (contacts.length === 0) {
     return <p className="empty-state">No contacts yet — add your first lead above.</p>
@@ -32,7 +33,11 @@ export default function ContactList({
           const quote = calculateQuote(services, c.services, c.measurements)
           return (
           <tr key={c.id}>
-            <td>{c.name}</td>
+            <td>
+              <button type="button" className="link-btn" onClick={() => onEdit(c.id)}>
+                {c.name}
+              </button>
+            </td>
             <td>{c.phone}</td>
             <td>{c.address}</td>
             <td>{serviceLabels(services, c.services)}</td>

@@ -33,6 +33,10 @@ step by step in React.
    scheduled contact on its date, built from the same `scheduledAt` field
    the board and list already edit — nothing new to enter, this is just
    another way of looking at the same data.
+7. **Edit an existing contact** — click a contact's name (board card or
+   list row) to open it in an editable form, pre-filled with everything
+   including services and measurements. Save recalculates the quote,
+   Cancel discards changes, and there's a Delete right there too.
 
 No backend yet, on purpose — the first milestones stay focused on React
 fundamentals (components, state, forms, native browser APIs) before adding
@@ -50,9 +54,11 @@ the complexity of a server.
 - `src/data/formatSchedule.js` — formats a scheduled datetime for display.
 - `src/data/contacts.js` — localStorage read/write. This is the one file
   you'd swap out to move to a real backend (e.g. Supabase/Postgres) later.
-- `src/components/ContactForm.jsx` — add-contact form.
-- `src/components/ContactList.jsx` — contact table with inline stage editing
-  and delete.
+- `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
+  edit form: pass it an `editingContact` and it pre-fills, changes its
+  submit handler to `onSave` instead of `onAdd`, and shows Cancel/Delete.
+- `src/components/ContactList.jsx` — contact table with inline stage
+  editing and delete; click a name to edit.
 - `src/components/PipelineBoard.jsx` — Kanban-style board, one column per
   stage, drag-and-drop to change a contact's stage.
 - `src/components/ServiceManager.jsx` — add/rename/reprice/delete services.
@@ -71,10 +77,8 @@ npm run dev
 
 ## Planned next milestones
 
-1. Edit measurements/services on an existing contact (currently set once
-   at creation).
-2. Deal-level notes/activity log per contact.
-3. Swap localStorage for a real backend + auth (Supabase or a small
+1. Deal-level notes/activity log per contact.
+2. Swap localStorage for a real backend + auth (Supabase or a small
    Node/Express API) once the localStorage version feels limiting — this
    is also when a service price change should probably stop retroactively
    changing already-quoted jobs (snapshot the price at quote time).

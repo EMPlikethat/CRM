@@ -1,19 +1,36 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { STAGES } from '../data/stages'
 import { calculateQuote, formatCurrency } from '../data/quote'
 
-const EMPTY_FORM = {
-  name: '',
-  phone: '',
-  address: '',
-  services: [],
-  measurements: {},
-  stage: STAGES[0].id,
-  scheduledAt: '',
+function toFormState(contact) {
+  return {
+    name: contact?.name ?? '',
+    phone: contact?.phone ?? '',
+    address: contact?.address ?? '',
+    services: contact?.services ?? [],
+    measurements: contact?.measurements ?? {},
+    stage: contact?.stage ?? STAGES[0].id,
+    scheduledAt: contact?.scheduledAt ?? '',
+  }
 }
 
-export default function ContactForm({ services, onAdd }) {
-  const [form, setForm] = useState(EMPTY_FORM)
+export default function ContactForm({
+  services,
+  onAdd,
+  editingContact,
+  onSave,
+  onCancel,
+  onDelete,
+}) {
+  const isEditing = Boolean(editingContact)
+  const [form, setForm] = useState(() => toFormState(editingContact))
+
+  // Only re-initialize when the modal switches to a different contact,
+  // not on every contacts-array update - otherwise unrelated changes
+  // elsewhere would blow away whatever the user is mid-typing here.
+  useEffect(() => {
+    setForm(toFormState(editingContact))
+  }, [editingContact?.id])
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }))
@@ -41,15 +58,19 @@ export default function ContactForm({ services, onAdd }) {
   function handleSubmit(e) {
     e.preventDefault()
     if (!form.name.trim()) return
-    onAdd({ ...form, id: crypto.randomUUID() })
-    setForm(EMPTY_FORM)
+    if (isEditing) {
+      onSave(editingContact.id, form)
+    } else {
+      onAdd({ ...form, id: crypto.randomUUID() })
+      setForm(toFormState(null))
+    }
   }
 
   const quote = calculateQuote(services, form.services, form.measurements)
 
   return (
     <form className="contact-form" onSubmit={handleSubmit}>
-      <h2>Add contact</h2>
+      <h2>{isEditing ? 'Edit contact' : 'Add contact'}</h2>
       <div className="form-grid">
         <label>
           Name
@@ -190,7 +211,23 @@ export default function ContactForm({ services, onAdd }) {
         </div>
       )}
 
-      <button type="submit">Add contact</button>
+      <div className="form-actions">
+        <button type="submit">{isEditing ? 'Save changes' : 'Add contact'}</button>
+        {isEditing && (
+          <>
+            <button type="button" className="cancel-btn" onClick={onCancel}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="delete-btn"
+              onClick={() => onDelete(editingContact.id)}
+            >
+              Delete contact
+            </button>
+          </>
+        )}
+      </div>
     </form>
   )
 }

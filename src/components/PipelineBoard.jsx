@@ -10,6 +10,7 @@ export default function PipelineBoard({
   onUpdateStage,
   onUpdateSchedule,
   onDelete,
+  onEdit,
 }) {
   const [dragOverStage, setDragOverStage] = useState(null)
   const [editingScheduleId, setEditingScheduleId] = useState(null)
@@ -61,7 +62,13 @@ export default function PipelineBoard({
                     draggable
                     onDragStart={(e) => handleDragStart(e, c.id)}
                   >
-                    <div className="card-name">{c.name}</div>
+                    <button
+                      type="button"
+                      className="card-name"
+                      onClick={() => onEdit(c.id)}
+                    >
+                      {c.name}
+                    </button>
                     {c.services?.length > 0 && (
                       <div className="card-service">
                         {serviceLabels(services, c.services)}
