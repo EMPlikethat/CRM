@@ -33,3 +33,20 @@ export function put(path, body) {
 export function del(path) {
   return request(path, { method: 'DELETE' })
 }
+
+// For file uploads: no Content-Type header here, so the browser sets
+// the correct multipart/form-data boundary itself.
+export async function upload(path, formData) {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => null)
+    const err = new Error(body?.error || `POST ${path} failed: ${res.status}`)
+    err.status = res.status
+    throw err
+  }
+  return res.json()
+}

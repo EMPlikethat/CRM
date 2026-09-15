@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { STAGES } from '../data/stages'
 import { calculateQuote, formatCurrency } from '../data/quote'
 import { sendInvoiceEmail } from '../data/contacts'
@@ -45,6 +45,8 @@ export default function ContactForm({
   onAddFollowUp,
   onToggleFollowUp,
   onDeleteFollowUp,
+  onUploadPhoto,
+  onDeletePhoto,
 }) {
   const isEditing = Boolean(editingContact)
   const [form, setForm] = useState(() => toFormState(editingContact))
@@ -53,6 +55,11 @@ export default function ContactForm({
   const [newNoteText, setNewNoteText] = useState('')
   const [newFollowUpText, setNewFollowUpText] = useState('')
   const [newFollowUpDate, setNewFollowUpDate] = useState('')
+  const [newPhotoFile, setNewPhotoFile] = useState(null)
+  const [newPhotoCaption, setNewPhotoCaption] = useState('')
+  const [photoError, setPhotoError] = useState(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef(null)
 
   // Only re-initialize when the modal switches to a different contact,
   // not on every contacts-array update - otherwise unrelated changes
@@ -108,6 +115,21 @@ export default function ContactForm({
       setEmailStatus(err.message)
     }
     setTimeout(() => setEmailStatus(null), 4000)
+  }
+
+  async function handleUploadPhoto() {
+    if (!newPhotoFile) return
+    setUploadingPhoto(true)
+    setPhotoError(null)
+    try {
+      await onUploadPhoto(editingContact.id, newPhotoFile, newPhotoCaption.trim())
+      setNewPhotoFile(null)
+      setNewPhotoCaption('')
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    } catch (err) {
+      setPhotoError(err.message)
+    }
+    setUploadingPhoto(false)
   }
 
   async function handleAddNote() {
@@ -476,6 +498,57 @@ export default function ContactForm({
               )
             })}
           </ul>
+        </div>
+      )}
+
+      {isEditing && (
+        <div className="activity-panel">
+          <h3>Photos</h3>
+          <div className="photo-add-form">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={(e) => setNewPhotoFile(e.target.files[0] ?? null)}
+            />
+            <input
+              value={newPhotoCaption}
+              onChange={(e) => setNewPhotoCaption(e.target.value)}
+              placeholder="Caption (optional)"
+            />
+            <button
+              type="button"
+              onClick={handleUploadPhoto}
+              disabled={!newPhotoFile || uploadingPhoto}
+            >
+              {uploadingPhoto ? 'Uploading…' : 'Add'}
+            </button>
+          </div>
+          {photoError && <p className="invoice-email-error">{photoError}</p>}
+          {editingContact.photos.length > 0 && (
+            <div className="photo-grid">
+              {[...editingContact.photos].reverse().map((photo) => (
+                <div key={photo.id} className="photo-thumb">
+                  <a
+                    href={`/uploads/${photo.filename}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <img src={`/uploads/${photo.filename}`} alt={photo.caption || 'Job photo'} />
+                  </a>
+                  {photo.caption && <p className="photo-caption">{photo.caption}</p>}
+                  <button
+                    type="button"
+                    className="photo-delete"
+                    onClick={() => onDeletePhoto(editingContact.id, photo.id)}
+                    aria-label="Delete photo"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,4 +1,4 @@
-import { get, post, put, del } from './api'
+import { get, post, put, del, upload } from './api'
 
 export function fetchContacts() {
   return get('/contacts')
@@ -38,4 +38,15 @@ export function toggleFollowUp(id, followUpId, done) {
 
 export function deleteFollowUp(id, followUpId) {
   return del(`/contacts/${id}/follow-ups/${followUpId}`)
+}
+
+export function uploadPhoto(id, file, caption) {
+  const formData = new FormData()
+  formData.append('photo', file)
+  formData.append('caption', caption)
+  return upload(`/contacts/${id}/photos`, formData)
+}
+
+export function deletePhoto(id, photoId) {
+  return del(`/contacts/${id}/photos/${photoId}`)
 }

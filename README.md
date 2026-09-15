@@ -152,6 +152,22 @@ step by step in React with a real Node/Express + SQLite backend.
     card (previously a "not tracked yet" placeholder, milestone 13) now
     shows a real count of follow-ups due today or earlier and is
     clickable, matching the other four cards.
+20. **Photos** — a contact can hold a set of job photos (before/after
+    shots, damage documentation), each with an optional caption. The
+    Photos panel in the edit form is upload-and-view: pick a file, add an
+    optional caption, hit Add, and it shows up immediately in a thumbnail
+    grid (newest first); click a thumbnail to view it full-size, or
+    delete it. Uploads go through `multer` straight to disk
+    (`server/uploads/`, gitignored, filenames randomized so they can't be
+    guessed), with a matching `photos` JSON column on the contact holding
+    each one's caption/timestamp - same storage pattern as Notes and
+    Follow-ups. Capped at 8MB and image files only; anything else gets a
+    clear error instead of a broken upload. Deleting a photo (or the
+    whole contact) removes its file from disk too, so nothing orphaned
+    piles up. One real limitation worth knowing: most hosts (Render
+    included, on its default web service) wipe local disk on every
+    deploy/restart, so uploaded photos won't survive one unless you
+    attach a persistent volume - see "Deploying" below.
 
 ## Roadmap
 
@@ -170,7 +186,7 @@ The full feature list, and where each one stands:
 | 9 | Invoices | **Done** (milestones 16-17) - plus a public pay link |
 | 10 | Payments | **Done** (milestones 16-17) - online (Stripe) or manual |
 | 11 | Follow-ups | **Done** (milestone 19) |
-| 12 | Photos | Not started |
+| 12 | Photos | **Done** (milestone 20) |
 | 13 | Notes | **Done** (milestone 19) |
 | 14 | Expenses | Not started |
 | 15 | Profitability | Not started - needs Jobs + Invoices + Expenses first |
@@ -186,8 +202,7 @@ The full feature list, and where each one stands:
 3. ~~Invoices → Payments~~ — done (milestone 16). "Jobs" as its own
    distinct entity (separate from the pipeline stage) is the one piece of
    this step not done - stays a stage on the contact for now.
-4. ~~Notes, Follow-ups~~ — done (milestone 19). Photos (attachments on a
-   property or job) is the one piece of this step not done yet.
+4. ~~Notes, Follow-ups, Photos~~ — done (milestones 19-20).
 5. Expenses → Profitability → Reports (needs Jobs + Invoices to exist).
 6. Map, Settings (fairly independent, can slot in anywhere) - Properties
    already has an address to geocode when Map gets built.
@@ -233,12 +248,19 @@ host — but the app is set up to make it a small number of steps:
    created after step 5. Skippable: the app runs fully without it, just
    without online payment.
 
-One limitation worth knowing before you rely on this: sessions are held
-in the server's memory (`express-session`'s default store), which only
-works correctly with a single running server instance and forgets every
-signed-in session on restart/redeploy. Fine for one business owner on one
-instance; if this ever needs to scale to multiple server instances, swap
-in a real session store (e.g. one backed by the database) at that point.
+Two limitations worth knowing before you rely on this:
+- Sessions are held in the server's memory (`express-session`'s default
+  store), which only works correctly with a single running server
+  instance and forgets every signed-in session on restart/redeploy. Fine
+  for one business owner on one instance; if this ever needs to scale to
+  multiple server instances, swap in a real session store (e.g. one
+  backed by the database) at that point.
+- Uploaded job photos (milestone 20) live on local disk
+  (`server/uploads/`), same as the SQLite database file - most hosts'
+  default web service wipes that disk on every deploy or restart. Render,
+  Railway, and Fly.io all offer an attachable persistent volume for this;
+  point it at `server/uploads/` (and, ideally, `server/data.db` too) once
+  you deploy for real, or photos/data won't survive your next push.
 
 ## Project layout
 
@@ -253,10 +275,14 @@ in a real session store (e.g. one backed by the database) at that point.
   (`GET/POST /api/contacts`, `PUT/DELETE /api/contacts/:id`, and the same
   for `/api/services`) that read/write the database and return JSON, plus
   `/api/auth/*` (see `server/auth.js`), dedicated
-  `POST/DELETE /api/contacts/:id/notes[/:noteId]` and
-  `POST/PUT/DELETE /api/contacts/:id/follow-ups[/:followUpId]` routes so
-  adding a note or toggling a follow-up doesn't need the full contact PUT,
-  and, in production, static-file serving for the built frontend.
+  `POST/DELETE /api/contacts/:id/notes[/:noteId]`,
+  `POST/PUT/DELETE /api/contacts/:id/follow-ups[/:followUpId]`, and
+  `POST/DELETE /api/contacts/:id/photos[/:photoId]` (via `multer`,
+  disk storage, 8MB limit, image-only) routes so adding a note, toggling
+  a follow-up, or uploading a photo doesn't need the full contact PUT,
+  plus `/uploads/*` (session-gated `express.static`, so an `<img>` tag
+  just works off the same cookie as everything else) and, in production,
+  static-file serving for the built frontend.
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
   compile.
@@ -287,13 +313,15 @@ in a real session store (e.g. one backed by the database) at that point.
 
 **Frontend** (`src/`):
 - `src/data/api.js` — a small `fetch` wrapper (`get`/`post`/`put`/`del`)
-  every other data file builds on.
+  every other data file builds on, plus `upload` (same idea, but sends a
+  `FormData` body with no forced `Content-Type`, so the browser sets the
+  correct multipart boundary itself - used for photo uploads).
 - `src/data/contacts.js` / `src/data/services.js` — one function per API
   call (`fetchContacts`, `createContact`, `saveContactUpdate`,
   `removeContact`, `sendInvoiceEmail`, `addNote`, `deleteNote`,
-  `addFollowUp`, `toggleFollowUp`, `deleteFollowUp`, and the equivalents
-  for services). `services.js` also still exports the pure helpers
-  `findService`/`serviceLabels`.
+  `addFollowUp`, `toggleFollowUp`, `deleteFollowUp`, `uploadPhoto`,
+  `deletePhoto`, and the equivalents for services). `services.js` also
+  still exports the pure helpers `findService`/`serviceLabels`.
 - `src/data/stages.js` — the pipeline stage definitions, used by the form,
   the table, and the board. Change the business process here.
 - `src/data/quote.js` — turns a contact's selected services + measurements
@@ -317,10 +345,11 @@ in a real session store (e.g. one backed by the database) at that point.
   "Copy link" and, if the contact has an email on file, "Send email" to
   resend the invoice on demand. Number, issue date, and the fact that
   either exists at all are never set from this form - only the server
-  decides when one gets created. When editing, also shows the Notes and
-  Follow-ups panels: add-forms plus a reverse-chronological notes list and
-  a checkbox-driven follow-ups list, each action hitting its own endpoint
-  and updating immediately, no save button needed.
+  decides when one gets created. When editing, also shows the Notes,
+  Follow-ups, and Photos panels: add-forms plus a reverse-chronological
+  notes list, a checkbox-driven follow-ups list, and a photo thumbnail
+  grid, each action hitting its own endpoint and updating immediately, no
+  save button needed.
 - `src/PayInvoice.jsx` / `src/main.jsx` — the public customer-facing pay
   page. Not part of the authenticated app: `main.jsx` checks
   `window.location.pathname` before rendering anything and renders this
@@ -351,8 +380,9 @@ in a real session store (e.g. one backed by the database) at that point.
   signed in, then fetches contacts/services, calls the API for every
   mutation and updates state from the response, and toggles between
   dashboard/board/list/calendar/search/followups/services views.
-- `vite.config.js` — proxies `/api/*` to `http://localhost:3001` in dev,
-  so the browser sees same-origin requests and no CORS setup is needed.
+- `vite.config.js` — proxies `/api/*` and `/uploads/*` to
+  `http://localhost:3001` in dev, so the browser sees same-origin
+  requests and no CORS setup is needed.
 
 ## Other planned work (not on the 18-item roadmap)
 

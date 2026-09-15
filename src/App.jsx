@@ -19,6 +19,8 @@ import {
   addFollowUp,
   toggleFollowUp,
   deleteFollowUp,
+  uploadPhoto,
+  deletePhoto,
 } from './data/contacts'
 import {
   fetchServices,
@@ -140,6 +142,16 @@ function App() {
 
   async function handleDeleteFollowUp(contactId, followUpId) {
     const updated = await deleteFollowUp(contactId, followUpId)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleUploadPhoto(contactId, file, caption) {
+    const updated = await uploadPhoto(contactId, file, caption)
+    setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
+  }
+
+  async function handleDeletePhoto(contactId, photoId) {
+    const updated = await deletePhoto(contactId, photoId)
     setContacts((prev) => prev.map((c) => (c.id === contactId ? updated : c)))
   }
 
@@ -310,6 +322,8 @@ function App() {
               onAddFollowUp={handleAddFollowUp}
               onToggleFollowUp={handleToggleFollowUp}
               onDeleteFollowUp={handleDeleteFollowUp}
+              onUploadPhoto={handleUploadPhoto}
+              onDeletePhoto={handleDeletePhoto}
             />
           </div>
         </div>

@@ -62,7 +62,8 @@ db.exec(`
     invoice TEXT,
     payment TEXT,
     notes TEXT NOT NULL DEFAULT '[]',
-    followUps TEXT NOT NULL DEFAULT '[]'
+    followUps TEXT NOT NULL DEFAULT '[]',
+    photos TEXT NOT NULL DEFAULT '[]'
   )
 `)
 
@@ -78,6 +79,7 @@ for (const migration of [
   'ALTER TABLE contacts ADD COLUMN payment TEXT',
   "ALTER TABLE contacts ADD COLUMN notes TEXT NOT NULL DEFAULT '[]'",
   "ALTER TABLE contacts ADD COLUMN followUps TEXT NOT NULL DEFAULT '[]'",
+  "ALTER TABLE contacts ADD COLUMN photos TEXT NOT NULL DEFAULT '[]'",
 ]) {
   try {
     db.exec(migration)

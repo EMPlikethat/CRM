@@ -1,8 +1,10 @@
 import path from 'node:path'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import crypto from 'node:crypto'
 import express from 'express'
 import session from 'express-session'
+import multer from 'multer'
 import db from './db.js'
 import { hashPassword, verifyPassword } from './auth.js'
 import { findOrCreateProperty } from './properties.js'
@@ -12,6 +14,28 @@ import { sendInvoiceEmail } from './email.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
+
+// Where uploaded job photos land on disk. Not committed to git (see
+// .gitignore) and, on most hosts, not persisted across deploys unless
+// you attach a real volume - see the Photos note in the README.
+const uploadsDir = path.join(__dirname, 'uploads')
+fs.mkdirSync(uploadsDir, { recursive: true })
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: uploadsDir,
+    filename: (req, file, cb) => {
+      cb(null, `${crypto.randomUUID()}${path.extname(file.originalname)}`)
+    },
+  }),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!/^image\//.test(file.mimetype)) {
+      return cb(new Error('Only image files can be uploaded'))
+    }
+    cb(null, true)
+  },
+})
 
 // Needed so express-session can tell over HTTPS vs HTTP when this sits
 // behind a host's reverse proxy (Railway, Render, etc.) - without it,
@@ -103,6 +127,11 @@ function requireAuth(req, res, next) {
   next()
 }
 
+// Job photos - gated the same as every other CRM route. A browser
+// sends the session cookie automatically on a same-origin <img src>,
+// so this works as a plain <img> tag with no extra fetch/blob dance.
+app.use('/uploads', requireAuth, express.static(uploadsDir))
+
 function rowToService(row) {
   return { id: row.id, label: row.label, pricing: JSON.parse(row.pricing) }
 }
@@ -125,6 +154,7 @@ function rowToContact(row) {
     payment: row.payment ? JSON.parse(row.payment) : null,
     notes: row.notes ? JSON.parse(row.notes) : [],
     followUps: row.followUps ? JSON.parse(row.followUps) : [],
+    photos: row.photos ? JSON.parse(row.photos) : [],
   }
 }
 
@@ -400,7 +430,53 @@ app.delete('/api/contacts/:id/follow-ups/:followUpId', requireAuth, (req, res) =
   res.json({ ...contact, followUps })
 })
 
+function savePhotos(id, photos) {
+  db.prepare('UPDATE contacts SET photos = ? WHERE id = ?').run(JSON.stringify(photos), id)
+}
+
+app.post('/api/contacts/:id/photos', requireAuth, (req, res) => {
+  // multer errors (bad file type, over the size limit) are handled here
+  // rather than through Express's global error handler, so this route
+  // can turn them into a normal JSON error response.
+  upload.single('photo')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message })
+    const contact = getContactOrNull(req.params.id)
+    if (!contact) {
+      if (req.file) fs.unlink(req.file.path, () => {})
+      return res.status(404).json({ error: 'Not found' })
+    }
+    if (!req.file) return res.status(400).json({ error: 'No photo file provided' })
+    const photos = [
+      ...contact.photos,
+      {
+        id: crypto.randomUUID(),
+        filename: req.file.filename,
+        caption: (req.body.caption ?? '').trim(),
+        createdAt: new Date().toISOString(),
+      },
+    ]
+    savePhotos(req.params.id, photos)
+    res.status(201).json({ ...contact, photos })
+  })
+})
+
+app.delete('/api/contacts/:id/photos/:photoId', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (!contact) return res.status(404).json({ error: 'Not found' })
+  const photo = contact.photos.find((p) => p.id === req.params.photoId)
+  const photos = contact.photos.filter((p) => p.id !== req.params.photoId)
+  if (photo) fs.unlink(path.join(uploadsDir, photo.filename), () => {})
+  savePhotos(req.params.id, photos)
+  res.json({ ...contact, photos })
+})
+
 app.delete('/api/contacts/:id', requireAuth, (req, res) => {
+  const contact = getContactOrNull(req.params.id)
+  if (contact) {
+    for (const photo of contact.photos) {
+      fs.unlink(path.join(uploadsDir, photo.filename), () => {})
+    }
+  }
   db.prepare('DELETE FROM contacts WHERE id = ?').run(req.params.id)
   res.status(204).end()
 })
