@@ -9,6 +9,7 @@ import PropertySearch from './components/PropertySearch'
 import FollowUpsView from './components/FollowUpsView'
 import ExpensesView from './components/ExpensesView'
 import ReportsView from './components/ReportsView'
+import MapView from './components/MapView'
 import AuthGate from './components/AuthGate'
 import { fetchAuthStatus, logout } from './data/auth'
 import {
@@ -31,6 +32,7 @@ import {
   removeService,
 } from './data/services'
 import { fetchExpenses, createExpense, removeExpense } from './data/expenses'
+import { fetchProperties, retryGeocode } from './data/properties'
 
 function App() {
   // null while the initial /auth/status check is in flight.
@@ -38,6 +40,7 @@ function App() {
   const [contacts, setContacts] = useState([])
   const [services, setServices] = useState([])
   const [expenses, setExpenses] = useState([])
+  const [properties, setProperties] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(null)
   const [view, setView] = useState('dashboard')
@@ -57,11 +60,12 @@ function App() {
   useEffect(() => {
     if (!authState?.authenticated) return
     setLoading(true)
-    Promise.all([fetchContacts(), fetchServices(), fetchExpenses()])
-      .then(([loadedContacts, loadedServices, loadedExpenses]) => {
+    Promise.all([fetchContacts(), fetchServices(), fetchExpenses(), fetchProperties()])
+      .then(([loadedContacts, loadedServices, loadedExpenses, loadedProperties]) => {
         setContacts(loadedContacts)
         setServices(loadedServices)
         setExpenses(loadedExpenses)
+        setProperties(loadedProperties)
       })
       .catch((err) => {
         if (err.status === 401) {
@@ -73,11 +77,22 @@ function App() {
       .finally(() => setLoading(false))
   }, [authState?.authenticated])
 
+  // New properties geocode in the background on the server, so refresh
+  // the list each time the Map tab is opened rather than only once on
+  // login - otherwise a property located moments ago wouldn't show a pin
+  // until a full page reload.
+  useEffect(() => {
+    if (view === 'map' && authState?.authenticated) {
+      fetchProperties().then(setProperties).catch(() => {})
+    }
+  }, [view, authState?.authenticated])
+
   async function handleLogout() {
     await logout()
     setContacts([])
     setServices([])
     setExpenses([])
+    setProperties([])
     setAuthState({ authenticated: false, needsSetup: false })
   }
 
@@ -171,6 +186,11 @@ function App() {
     setExpenses((prev) => prev.filter((e) => e.id !== id))
   }
 
+  async function handleRetryGeocode(id) {
+    const updated = await retryGeocode(id)
+    setProperties((prev) => prev.map((p) => (p.id === id ? updated : p)))
+  }
+
   if (loadError) {
     return (
       <main className="app">
@@ -258,6 +278,13 @@ function App() {
         </button>
         <button
           type="button"
+          className={view === 'map' ? 'active' : ''}
+          onClick={() => setView('map')}
+        >
+          Map
+        </button>
+        <button
+          type="button"
           className={view === 'followups' ? 'active' : ''}
           onClick={() => setView('followups')}
         >
@@ -318,6 +345,9 @@ function App() {
           services={services}
           onEdit={setEditingContactId}
         />
+      )}
+      {view === 'map' && (
+        <MapView properties={properties} onRetryGeocode={handleRetryGeocode} />
       )}
       {view === 'followups' && (
         <FollowUpsView

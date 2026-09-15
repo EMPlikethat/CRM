@@ -1,3 +1,13 @@
+import { get, post } from './api'
+
+export function fetchProperties() {
+  return get('/properties')
+}
+
+export function retryGeocode(id) {
+  return post(`/properties/${id}/geocode`)
+}
+
 // Groups contacts by propertyId (falling back to a normalized address
 // string for any contact saved before propertyId existed), so a house's
 // full history - across however many different owners it's had - shows

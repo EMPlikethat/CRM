@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import { geocodeAddress } from './geocode.js'
 
 // Loose normalization so "123 Main St" and "123 main st." link to the
 // same property. Doesn't handle "St" vs "Street" - a real address
@@ -28,5 +29,22 @@ export function findOrCreateProperty(db, address) {
   db.prepare(
     'INSERT INTO properties (id, address, normalizedAddress) VALUES (?, ?, ?)',
   ).run(id, address.trim(), normalized)
+  scheduleGeocode(db, id, address.trim())
   return id
+}
+
+// Fire-and-forget, same pattern as invoice emails: geocoding a brand new
+// property never blocks or fails the contact save that triggered it. A
+// failed lookup (bad address, Nominatim unreachable) just leaves lat/lng
+// null - the Map view shows it as "not yet located" with a manual retry,
+// rather than erroring.
+function scheduleGeocode(db, propertyId, address) {
+  geocodeAddress(address).then((result) => {
+    if (!result) return
+    db.prepare('UPDATE properties SET lat = ?, lng = ? WHERE id = ?').run(
+      result.lat,
+      result.lng,
+      propertyId,
+    )
+  })
 }

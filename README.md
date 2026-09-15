@@ -197,6 +197,33 @@ step by step in React with a real Node/Express + SQLite backend.
     this rather than being a separate build: for now, "the profitability
     report" is the one report this app has - more report types can be
     added to this same tab later without changing the pattern.
+23. **Map** — a new "Map" tab plots every property as a pin, built on
+    `leaflet` + OpenStreetMap tiles instead of Google Maps, specifically
+    to avoid Google's requirement of a billing account (a credit card on
+    file) just to get an API key - OSM needs neither. Addresses are
+    turned into coordinates via OpenStreetMap's free Nominatim geocoder,
+    automatically in the background the moment a brand new property is
+    created (fire-and-forget, same pattern as invoice emails - never
+    blocks or fails the contact save that triggered it) and once at
+    server startup for any older property still missing one. Nominatim's
+    usage policy caps requests at one per second, so every lookup goes
+    through a single serialized in-process queue (`server/geocode.js`)
+    rather than firing in parallel. A property that can't be located
+    (typo'd address, or the geocoder briefly unreachable) shows up in a
+    "Not yet located" list with a one-click Retry, instead of silently
+    never appearing. **Untested live in this session**: the sandboxed dev
+    environment's network policy blocks both `nominatim.openstreetmap.org`
+    and the OSM tile servers outright (`403`/tunnel-connection-failed on
+    every request), the same kind of restriction that already prevented
+    live-testing Stripe and Resend. What *is* verified: the map itself
+    initializes correctly (Leaflet's zoom controls render, confirmed via
+    screenshot), a new property is created and geocoding is attempted the
+    moment a new address is saved, and every failure path - startup
+    backfill, auto-geocode-on-create, and manual Retry - degrades to a
+    clear "not located" state rather than crashing or hanging. A real
+    deployment (or this app run outside a locked-down sandbox) reaches
+    both services over normal internet access with no code changes
+    needed.
 
 ## Roadmap
 
@@ -208,7 +235,7 @@ The full feature list, and where each one stands:
 | 2 | Leads | Exists as a pipeline stage/filter on Contacts, not a separate entity yet |
 | 3 | Customers | Same as above - "Customer" = later-stage contact |
 | 4 | Properties | **Done** (milestone 14) - address-anchored, see below |
-| 5 | Map | Not started |
+| 5 | Map | **Done** (milestone 23) - Leaflet/OSM, not Google Maps |
 | 6 | Estimates | Exists as the quote system (milestones 4, 9) under a different name |
 | 7 | Jobs | Not started as a distinct entity - currently a pipeline stage |
 | 8 | Scheduling | **Done** - the Calendar view (and inline scheduling on board/list) |
@@ -233,8 +260,8 @@ The full feature list, and where each one stands:
    this step not done - stays a stage on the contact for now.
 4. ~~Notes, Follow-ups, Photos~~ — done (milestones 19-20).
 5. ~~Expenses → Profitability → Reports~~ — done (milestones 21-22).
-6. Map, Settings (fairly independent, can slot in anywhere) - Properties
-   already has an address to geocode when Map gets built.
+6. ~~Map~~ — done (milestone 23), using the addresses Properties already
+   had. Settings is the only roadmap item left.
 
 ## Running it locally
 
@@ -314,17 +341,30 @@ Two limitations worth knowing before you rely on this:
   disk storage, 8MB limit, image-only) routes so adding a note, toggling
   a follow-up, or uploading a photo doesn't need the full contact PUT,
   plus `/uploads/*` (session-gated `express.static`, so an `<img>` tag
-  just works off the same cookie as everything else) and, in production,
-  static-file serving for the built frontend. Deleting a contact unlinks
-  (doesn't delete) any expenses logged against it - real spending history
-  outlives the job record.
+  just works off the same cookie as everything else), `GET /api/properties`
+  and `POST /api/properties/:id/geocode` (manual retry for one that
+  failed to auto-locate), and, in production, static-file serving for the
+  built frontend. Deleting a contact unlinks (doesn't delete) any
+  expenses logged against it - real spending history outlives the job
+  record. On startup, also re-queues a geocode for any property still
+  missing coordinates (covers ones that existed before this feature, or
+  whose first attempt failed).
 - `server/auth.js` — `hashPassword`/`verifyPassword`, built on Node's
   built-in `crypto.scrypt` - no extra dependency, no native module to
   compile.
 - `server/properties.js` — `normalizeAddress`/`findOrCreateProperty`, the
   address-matching logic every contact write goes through so jobs at the
   same house link to the same property regardless of small typos in how
-  the address was entered.
+  the address was entered. `findOrCreateProperty` also kicks off a
+  fire-and-forget geocode the moment it creates a brand new property (see
+  `server/geocode.js`), same non-blocking pattern as invoice emails.
+- `server/geocode.js` — `geocodeAddress(address)`, a thin wrapper around
+  OpenStreetMap's free Nominatim API (no key/billing account needed,
+  unlike Google Maps). Every call is queued behind a single in-process,
+  1-request-per-second throttle (Nominatim's usage policy), and it never
+  throws - a bad address, no match, or the service being unreachable all
+  just resolve to `null`, so a property simply stays "not yet located"
+  instead of the request failing.
 - `server/invoices.js` — `createInvoice`/`createPayment`. Invoice numbers
   come from a single-row `invoice_counter` table (starts at 1001),
   incremented once per invoice and never reused. Each invoice also gets
@@ -375,8 +415,10 @@ Two limitations worth knowing before you rely on this:
 - `src/data/auth.js` — `fetchAuthStatus`/`setupAccount`/`login`/`logout`.
 - `src/data/properties.js` — `groupByProperty`/`filterPropertyGroups`, pure
   functions over the already-loaded contacts array (grouped by
-  `propertyId`, newest job first). No API call - this is client-side
-  reshaping of data the app already has.
+  `propertyId`, newest job first) - client-side reshaping, no API call.
+  Also `fetchProperties`/`retryGeocode`, the two calls the Map view needs
+  (unlike those pure helpers, these do hit the backend, for the
+  server-held `lat`/`lng` a property doesn't get from contacts alone).
 - `src/components/AuthGate.jsx` — the sign-in screen; doubles as the
   one-time account-creation form when `needsSetup` is true.
 - `src/components/ContactForm.jsx` — add-contact form. Also doubles as the
@@ -415,6 +457,10 @@ Two limitations worth knowing before you rely on this:
   see every property's full job history with a Paid/stage badge per job
   (plus the real payment method/date once paid, or the invoice number
   and due date while still owed), click a name to edit it.
+- `src/components/MapView.jsx` — plots every geocoded property as a pin
+  on a `leaflet` map (OpenStreetMap tiles, no API key). Properties still
+  missing coordinates show in a "Not yet located" list below the map with
+  a one-click Retry, rather than just silently having no pin.
 - `src/components/FollowUpsView.jsx` — flat list of every pending
   follow-up across all contacts, sorted by due date, overdue ones
   flagged; completed ones collapse under a `<details>`. Checking one off
@@ -430,10 +476,13 @@ Two limitations worth knowing before you rely on this:
   client-side aggregation over the `contacts`/`expenses` already loaded -
   no API call of its own.
 - `src/App.jsx` — checks auth status first; renders `AuthGate` until
-  signed in, then fetches contacts/services/expenses, calls the API for
-  every mutation and updates state from the response, and toggles between
-  dashboard/board/list/calendar/search/followups/expenses/reports/services
-  views.
+  signed in, then fetches contacts/services/expenses/properties, calls
+  the API for every mutation and updates state from the response, and
+  toggles between
+  dashboard/board/list/calendar/search/map/followups/expenses/reports/services
+  views. Properties are also refetched every time the Map tab opens (not
+  just once at login), since new ones geocode in the background on the
+  server and a pin should show up without needing a full page reload.
 - `vite.config.js` — proxies `/api/*` and `/uploads/*` to
   `http://localhost:3001` in dev, so the browser sees same-origin
   requests and no CORS setup is needed.

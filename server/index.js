@@ -8,6 +8,7 @@ import multer from 'multer'
 import db from './db.js'
 import { hashPassword, verifyPassword } from './auth.js'
 import { findOrCreateProperty } from './properties.js'
+import { geocodeAddress } from './geocode.js'
 import { createInvoice, createPayment } from './invoices.js'
 import { getStripe } from './stripe.js'
 import { sendInvoiceEmail } from './email.js'
@@ -144,6 +145,15 @@ function rowToExpense(row) {
     category: row.category,
     date: row.date,
     contactId: row.contactId ?? null,
+  }
+}
+
+function rowToProperty(row) {
+  return {
+    id: row.id,
+    address: row.address,
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
   }
 }
 
@@ -322,6 +332,33 @@ app.put('/api/expenses/:id', requireAuth, (req, res) => {
 app.delete('/api/expenses/:id', requireAuth, (req, res) => {
   db.prepare('DELETE FROM expenses WHERE id = ?').run(req.params.id)
   res.status(204).end()
+})
+
+// --- Properties (all require sign-in) ---
+// Properties themselves are only ever created as a side effect of saving
+// a contact (see findOrCreateProperty) - there's no create/edit route
+// here, just reading them (for the Map) and retrying a failed geocode.
+
+app.get('/api/properties', requireAuth, (req, res) => {
+  const rows = db.prepare('SELECT * FROM properties').all()
+  res.json(rows.map(rowToProperty))
+})
+
+app.post('/api/properties/:id/geocode', requireAuth, async (req, res) => {
+  const row = db.prepare('SELECT * FROM properties WHERE id = ?').get(req.params.id)
+  if (!row) return res.status(404).json({ error: 'Not found' })
+  const result = await geocodeAddress(row.address)
+  if (!result) {
+    return res.status(502).json({
+      error: "Couldn't locate that address - check it's spelled correctly and try again",
+    })
+  }
+  db.prepare('UPDATE properties SET lat = ?, lng = ? WHERE id = ?').run(
+    result.lat,
+    result.lng,
+    req.params.id,
+  )
+  res.json(rowToProperty({ ...row, lat: result.lat, lng: result.lng }))
 })
 
 // --- Contacts (all require sign-in) ---
@@ -613,6 +650,24 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(distDir))
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(distDir, 'index.html'))
+  })
+}
+
+// Catches properties that existed before this feature shipped (or whose
+// geocode attempt failed at creation time, e.g. Nominatim briefly down).
+// Fire-and-forget and naturally rate-limited by the geocode queue itself,
+// so this is safe to run on every startup even with many properties.
+const propertiesNeedingGeocode = db
+  .prepare('SELECT id, address FROM properties WHERE lat IS NULL')
+  .all()
+for (const property of propertiesNeedingGeocode) {
+  geocodeAddress(property.address).then((result) => {
+    if (!result) return
+    db.prepare('UPDATE properties SET lat = ?, lng = ? WHERE id = ?').run(
+      result.lat,
+      result.lng,
+      property.id,
+    )
   })
 }
 

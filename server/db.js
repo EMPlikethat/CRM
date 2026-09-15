@@ -25,9 +25,18 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS properties (
     id TEXT PRIMARY KEY,
     address TEXT NOT NULL,
-    normalizedAddress TEXT NOT NULL UNIQUE
+    normalizedAddress TEXT NOT NULL UNIQUE,
+    lat REAL,
+    lng REAL
   )
 `)
+
+try {
+  db.exec('ALTER TABLE properties ADD COLUMN lat REAL')
+  db.exec('ALTER TABLE properties ADD COLUMN lng REAL')
+} catch {
+  // columns already exist - nothing to do
+}
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
