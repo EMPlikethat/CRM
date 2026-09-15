@@ -18,6 +18,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     phone TEXT,
+    email TEXT,
     address TEXT,
     services TEXT NOT NULL DEFAULT '[]',
     measurements TEXT NOT NULL DEFAULT '{}',
@@ -27,13 +28,18 @@ db.exec(`
   )
 `)
 
-// Migration for databases created before quote-snapshotting existed.
-// SQLite has no "ADD COLUMN IF NOT EXISTS", so just ignore the error
-// when the column is already there.
-try {
-  db.exec('ALTER TABLE contacts ADD COLUMN quote TEXT')
-} catch {
-  // column already exists - nothing to do
+// Migrations for databases created before a column existed. SQLite has
+// no "ADD COLUMN IF NOT EXISTS", so just ignore the error when a column
+// is already there.
+for (const migration of [
+  'ALTER TABLE contacts ADD COLUMN quote TEXT',
+  'ALTER TABLE contacts ADD COLUMN email TEXT',
+]) {
+  try {
+    db.exec(migration)
+  } catch {
+    // column already exists - nothing to do
+  }
 }
 
 function nextFriday9am() {
@@ -71,13 +77,14 @@ if (serviceCount === 0) {
 const contactCount = db.prepare('SELECT COUNT(*) AS count FROM contacts').get().count
 if (contactCount === 0) {
   const insertContact = db.prepare(`
-    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt, quote)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `)
   insertContact.run(
     'seed-1',
     'Maria Alvarez',
     '555-0142',
+    'maria.alvarez@example.com',
     '118 Birchwood Dr',
     JSON.stringify(['roof-softwash', 'gutter-debris']),
     JSON.stringify({
@@ -108,6 +115,7 @@ if (contactCount === 0) {
     'seed-2',
     'Tom Nguyen',
     '555-0198',
+    'tom.nguyen@example.com',
     '42 Lakeview Ct',
     JSON.stringify(['driveway-entree']),
     JSON.stringify({ 'driveway-entree': { sqft: 450 } }),
@@ -129,6 +137,7 @@ if (contactCount === 0) {
     'seed-3',
     'Sara Kim',
     '555-0177',
+    'sara.kim@example.com',
     '7 Willow Ave',
     JSON.stringify(['roof-softwash', 'driveway-entree']),
     JSON.stringify({

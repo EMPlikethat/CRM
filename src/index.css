@@ -453,6 +453,10 @@ button:hover {
   padding: 0.6rem 0.5rem;
   border-bottom: 1px solid var(--border);
   font-size: 0.9rem;
+  /* Long unbroken strings (emails, addresses) have no spaces to wrap
+     on, so without this they overflow past their fixed-width column
+     instead of wrapping onto a second line. */
+  overflow-wrap: anywhere;
 }
 
 .contact-table td input,

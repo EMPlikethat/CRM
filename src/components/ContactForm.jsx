@@ -6,6 +6,7 @@ function toFormState(contact) {
   return {
     name: contact?.name ?? '',
     phone: contact?.phone ?? '',
+    email: contact?.email ?? '',
     address: contact?.address ?? '',
     services: contact?.services ?? [],
     measurements: contact?.measurements ?? {},
@@ -90,6 +91,14 @@ export default function ContactForm({
           <input
             value={form.phone}
             onChange={(e) => updateField('phone', e.target.value)}
+          />
+        </label>
+        <label>
+          Email
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => updateField('email', e.target.value)}
           />
         </label>
         <label>

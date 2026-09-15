@@ -27,6 +27,7 @@ export default function ContactList({
         <tr>
           <th>Name</th>
           <th>Phone</th>
+          <th>Email</th>
           <th>Address</th>
           <th>Services</th>
           <th>Quote</th>
@@ -46,6 +47,7 @@ export default function ContactList({
               </button>
             </td>
             <td>{c.phone}</td>
+            <td>{c.email}</td>
             <td>{c.address}</td>
             <td>{serviceLabels(services, c.services)}</td>
             <td>{quote.total > 0 ? formatCurrency(quote.total) : '—'}</td>

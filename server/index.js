@@ -13,6 +13,7 @@ function rowToContact(row) {
     id: row.id,
     name: row.name,
     phone: row.phone ?? '',
+    email: row.email ?? '',
     address: row.address ?? '',
     services: JSON.parse(row.services),
     measurements: JSON.parse(row.measurements),
@@ -66,12 +67,13 @@ app.get('/api/contacts', (req, res) => {
 app.post('/api/contacts', (req, res) => {
   const c = req.body
   db.prepare(`
-    INSERT INTO contacts (id, name, phone, address, services, measurements, stage, scheduledAt, quote)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO contacts (id, name, phone, email, address, services, measurements, stage, scheduledAt, quote)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     c.id,
     c.name,
     c.phone ?? '',
+    c.email ?? '',
     c.address ?? '',
     JSON.stringify(c.services ?? []),
     JSON.stringify(c.measurements ?? {}),
@@ -88,11 +90,12 @@ app.put('/api/contacts/:id', (req, res) => {
   const updated = { ...rowToContact(existing), ...req.body }
   db.prepare(`
     UPDATE contacts
-    SET name = ?, phone = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?
+    SET name = ?, phone = ?, email = ?, address = ?, services = ?, measurements = ?, stage = ?, scheduledAt = ?, quote = ?
     WHERE id = ?
   `).run(
     updated.name,
     updated.phone,
+    updated.email,
     updated.address,
     JSON.stringify(updated.services),
     JSON.stringify(updated.measurements),

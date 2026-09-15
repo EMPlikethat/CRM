@@ -48,6 +48,9 @@ step by step in React with a real Node/Express + SQLite backend.
    change the price on a job already sitting in your pipeline. Re-saving
    an existing contact deliberately re-quotes it at today's rates; that's
    the one and only way an old contact's price changes.
+10. **Email** — contacts now have an email field alongside phone/address,
+    shown in the form and the list. (Useful for later, when the planned
+    scanner/calculator sends a quote by text and email — see below.)
 
 ## Running it
 
